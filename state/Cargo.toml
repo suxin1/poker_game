@@ -1,0 +1,21 @@
+[package]
+name = "game"
+authors = ["suxin1"]
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+strum = "0.27"
+strum_macros = "0.27"
+rand = "0.9"
+itertools = "0.14"
+serde = {version = "1", features = ["derive"]}
+
+bevy_ecs = { version = "0.16", optional = true }
+log = "0.4.27"
+
+[features]
+bevy = ["bevy_ecs"]
+
+[lints]
+workspace = true
