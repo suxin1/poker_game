@@ -1,44 +1,34 @@
-//! Foundational features and cross-cutting concerns.
+pub mod assets;
 
-pub mod asset;
-pub mod audio;
-pub mod camera;
-#[cfg(feature = "dev")]
-pub mod dev;
 pub mod pause;
 pub mod window;
+pub mod audio;
 
 use bevy::audio::AudioPlugin;
-
 use crate::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
-    app.configure::<UpdateSystems>();
+    app.configure::<AppSystems>();
 
-    // Add Bevy plugins.
     app.add_plugins(
         DefaultPlugins
             .build()
             .set(ImagePlugin::default_nearest())
             .replace::<AudioPlugin>(audio::plugin)
             .replace::<WindowPlugin>(window::plugin)
-            // `window::plugin` requires the following plugins:
             .disable::<AssetPlugin>()
-            .add_before::<WindowPlugin>(asset::plugin)
+            .add_before::<WindowPlugin>(assets::plugin),
     );
 
-    // Add other core plugins.
-    app.add_plugins((
-        camera::plugin,
-        #[cfg(feature = "dev")]
-        dev::plugin,
-        pause::plugin,
-    ));
+    app.add_plugins((pause::plugin));
 }
 
+/// High-level groupings of systems for the app in the `Update` schedule.
+/// When adding a new variant, make sure to order it in the `configure_sets`
+/// call above.
 /// Game logic steps for the [`Update`] schedule.
 #[derive(SystemSet, Clone, Eq, PartialEq, Hash, Debug)]
-pub enum UpdateSystems {
+pub enum AppSystems {
     /// Synchronize start-of-frame values.
     SyncEarly,
     /// Tick timers.
@@ -55,7 +45,7 @@ pub enum UpdateSystems {
     SyncLate,
 }
 
-impl Configure for UpdateSystems {
+impl Configure for AppSystems {
     fn configure(app: &mut App) {
         app.configure_sets(
             Update,

@@ -1,40 +1,31 @@
+use crate::asset_tracking::LoadResource;
+use crate::core::audio::{AudioSettings, ui_audio};
 use bevy::ecs::component::Mutable;
-use bevy::reflect::GetTypeRegistration;
-use bevy::reflect::Typed;
+use bevy::reflect::{GetTypeRegistration, Typed};
 
-use crate::animation::offset::NodeOffset;
-use crate::core::audio::AudioSettings;
-use crate::core::audio::ui_audio;
 use crate::prelude::*;
-use crate::theme::ThemeAssets;
 
 pub(super) fn plugin(app: &mut App) {
-    app.configure::<(
-        Previous<Interaction>,
-        InteractionDisabled,
-        InteractionTheme<ThemeColorFor<BackgroundColor>>,
-        InteractionTheme<NodeOffset>,
-        TargetInteractionTheme<ThemeColorForText>,
-        TargetInteractionTheme<NodeOffset>,
-        InteractionSfx,
-    )>();
+    app.register_type::<InteractionDisabled>();
+
+    // app.register_type::<InteractionPalette>();
+    // app.add_systems(Update, apply_interaction_palette);
+    app.configure::<InteractionPalette<BackgroundColor>>();
+
+    app.register_type::<InteractionAssets>();
+    app.load_resource::<InteractionAssets>();
+    app.add_observer(play_on_hover_sound_effect);
+    app.add_observer(play_on_click_sound_effect);
 }
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct InteractionDisabled(pub bool);
 
-impl Configure for InteractionDisabled {
-    fn configure(app: &mut App) {
-        app.register_type::<Self>();
-    }
-}
-
-/// A table of values to set a component to by interaction state.
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
-#[require(Interaction, Previous<Interaction>)]
-pub struct InteractionTheme<C: Component<Mutability = Mutable> + Clone> {
+#[require(Interaction)]
+pub struct InteractionPalette<C: Component<Mutability = Mutable> + Clone> {
     pub none: C,
     pub hovered: C,
     pub pressed: C,
@@ -42,153 +33,122 @@ pub struct InteractionTheme<C: Component<Mutability = Mutable> + Clone> {
 }
 
 impl<C: Component<Mutability = Mutable> + Clone + Typed + FromReflect + GetTypeRegistration>
-    Configure for InteractionTheme<C>
+    Configure for InteractionPalette<C>
 {
     fn configure(app: &mut App) {
         app.register_type::<Self>();
         app.add_systems(
             Update,
-            apply_interaction_theme::<C>.in_set(UpdateSystems::RecordInput),
+            apply_interaction_palette::<C>.in_set(AppSystems::RecordInput),
         );
     }
 }
 
-#[cfg_attr(feature = "native_dev", hot)]
-fn apply_interaction_theme<C: Component<Mutability = Mutable> + Clone>(
-    mut interaction_query: Query<
+fn apply_interaction_palette<C: Component<Mutability = Mutable> + Clone>(
+    mut palette_query: Query<
         (
-            Option<&InteractionDisabled>,
-            &Previous<Interaction>,
             &Interaction,
-            &InteractionTheme<C>,
+            &InteractionPalette<C>,
             &mut C,
-        ),
-        Or<(
-            Changed<InteractionDisabled>,
-            Changed<Previous<Interaction>>,
-            Changed<Interaction>,
-        )>,
-    >,
-) {
-    for (is_disabled, previous, current, table, mut value) in &mut interaction_query {
-        // Add 1 frame of delay when going from pressed -> hovered.
-        cq!(!matches!(
-            (previous.0, current),
-            (Interaction::Pressed, Interaction::Hovered),
-        ));
-
-        // Clone the field corresponding to the current interaction state.
-        *value = if matches!(is_disabled, Some(InteractionDisabled(true))) {
-            &table.disabled
-        } else {
-            match current {
-                Interaction::None => &table.none,
-                Interaction::Hovered => &table.hovered,
-                Interaction::Pressed => &table.pressed,
-            }
-        }
-        .clone();
-    }
-}
-
-/// Values to set a component to by a target entity's interaction state.
-#[derive(Component, Reflect)]
-#[reflect(Component)]
-pub struct TargetInteractionTheme<C: Component<Mutability = Mutable> + Clone> {
-    pub target: Entity,
-    pub none: C,
-    pub hovered: C,
-    pub pressed: C,
-    pub disabled: C,
-}
-
-impl<C: Component<Mutability = Mutable> + Clone + Typed + FromReflect + GetTypeRegistration>
-    Configure for TargetInteractionTheme<C>
-{
-    fn configure(app: &mut App) {
-        app.register_type::<Self>();
-        app.add_systems(
-            Update,
-            apply_target_interaction_theme::<C>.in_set(UpdateSystems::RecordInput),
-        );
-    }
-}
-
-#[cfg_attr(feature = "native_dev", hot)]
-fn apply_target_interaction_theme<C: Component<Mutability = Mutable> + Clone>(
-    mut table_query: Query<(&TargetInteractionTheme<C>, &mut C)>,
-    interaction_query: Query<
-        (
             Option<&InteractionDisabled>,
-            &Previous<Interaction>,
-            &Interaction,
         ),
-        Or<(
-            Changed<InteractionDisabled>,
-            Changed<Previous<Interaction>>,
-            Changed<Interaction>,
-        )>,
+        Or<(Changed<Interaction>, Changed<InteractionDisabled>)>,
     >,
 ) {
-    for (table, mut value) in &mut table_query {
-        let (is_disabled, previous, current) = cq!(interaction_query.get(table.target));
-        // Add 1 frame of delay when going from pressed -> hovered.
-        cq!(!matches!(
-            (previous.0, current),
-            (Interaction::Pressed, Interaction::Hovered),
-        ));
-
-        // Clone the field corresponding to the current interaction state.
-        *value = if matches!(is_disabled, Some(InteractionDisabled(true))) {
-            &table.disabled
+    for (interaction, palette, mut value, disabled) in &mut palette_query {
+        *value = if matches!(disabled, Some(InteractionDisabled(true))) {
+            &palette.disabled
         } else {
-            match current {
-                Interaction::None => &table.none,
-                Interaction::Hovered => &table.hovered,
-                Interaction::Pressed => &table.pressed,
+            match interaction {
+                Interaction::None => &palette.none,
+                Interaction::Hovered => &palette.hovered,
+                Interaction::Pressed => &palette.pressed,
             }
         }
         .clone();
+        // *value = match interaction {
+        //     Interaction::None => palette.none,
+        //     Interaction::Hovered => palette.hovered,
+        //     Interaction::Pressed => palette.pressed,
+        // }
+        //     .into();
     }
 }
 
-#[derive(Component, Reflect)]
-#[reflect(Component)]
-#[require(Previous<Interaction>)]
-pub struct InteractionSfx;
+/// Palette for widget interactions. Add this to an entity that supports
+/// [`Interaction`]s, such as a button, to change its [`BackgroundColor`] based
+/// on the current interaction state.
+// #[derive(Component, Debug, Reflect)]
+// #[reflect(Component)]
+// pub struct InteractionPalette {
+//     pub none: Color,
+//     pub hovered: Color,
+//     pub pressed: Color,
+// }
+//
+// fn apply_interaction_palette(
+//     mut palette_query: Query<
+//         (&Interaction, &InteractionPalette, &mut BackgroundColor, Option<&InteractionDisabled>),
+//         Changed<Interaction>,
+//     >,
+// ) {
+//     for (interaction, palette, mut background, disabled) in &mut palette_query {
+//         *background = match interaction {
+//             Interaction::None => palette.none,
+//             Interaction::Hovered => palette.hovered,
+//             Interaction::Pressed => palette.pressed,
+//         }
+//         .into();
+//     }
+// }
 
-impl Configure for InteractionSfx {
-    fn configure(app: &mut App) {
-        app.register_type::<Self>();
-        app.add_observer(play_hover_sfx);
-        app.add_observer(play_click_sfx);
+#[derive(Resource, Asset, Clone, Reflect)]
+#[reflect(Resource)]
+struct InteractionAssets {
+    #[dependency]
+    hover: Handle<AudioSource>,
+    #[dependency]
+    click: Handle<AudioSource>,
+}
+
+impl FromWorld for InteractionAssets {
+    fn from_world(world: &mut World) -> Self {
+        let assets = world.resource::<AssetServer>();
+        Self {
+            hover: assets.load("audio/sound_effects/button_hover.ogg"),
+            click: assets.load("audio/sound_effects/button_click.ogg"),
+        }
     }
 }
 
-fn play_hover_sfx(
+fn play_on_hover_sound_effect(
     trigger: Trigger<Pointer<Over>>,
     audio_settings: Res<AudioSettings>,
-    assets: Res<ThemeAssets>,
-    sfx_query: Query<Option<&InteractionDisabled>, With<InteractionSfx>>,
+    interaction_assets: Option<Res<InteractionAssets>>,
+    interaction_query: Query<(), With<Interaction>>,
     mut commands: Commands,
 ) {
-    let target = r!(trigger.get_target());
-    let disabled = rq!(sfx_query.get(target));
-    rq!(!matches!(disabled, Some(InteractionDisabled(true))));
+    let Some(interaction_assets) = interaction_assets else {
+        return;
+    };
 
-    commands.spawn(ui_audio(&audio_settings, assets.sfx_hover.clone()));
+    if interaction_query.contains(trigger.target()) {
+        commands.spawn(ui_audio(&audio_settings, interaction_assets.hover.clone()));
+    }
 }
 
-fn play_click_sfx(
+fn play_on_click_sound_effect(
     trigger: Trigger<Pointer<Click>>,
     audio_settings: Res<AudioSettings>,
-    assets: Res<ThemeAssets>,
-    sfx_query: Query<Option<&InteractionDisabled>, With<InteractionSfx>>,
+    interaction_assets: Option<Res<InteractionAssets>>,
+    interaction_query: Query<(), With<Interaction>>,
     mut commands: Commands,
 ) {
-    let target = r!(trigger.get_target());
-    let disabled = rq!(sfx_query.get(target));
-    rq!(!matches!(disabled, Some(InteractionDisabled(true))));
+    let Some(interaction_assets) = interaction_assets else {
+        return;
+    };
 
-    commands.spawn(ui_audio(&audio_settings, assets.sfx_click.clone()));
+    if interaction_query.contains(trigger.target()) {
+        commands.spawn(ui_audio(&audio_settings, interaction_assets.click.clone()));
+    }
 }

@@ -1,26 +1,17 @@
 use crate::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
-    app.configure::<(Pause, PausableSystems)>();
+    // Set up the `Pause` state.
+    app.init_state::<Pause>();
+    app.configure_sets(Update, PausableSystems.run_if(in_state(Pause(false))));
 }
 
-#[derive(State, Reflect, Copy, Clone, Default, Eq, PartialEq, Debug)]
-#[state(log_flush)]
-#[reflect(Resource)]
-pub struct Pause;
 
-impl Configure for Pause {
-    fn configure(app: &mut App) {
-        app.register_type::<Self>();
-        app.add_state::<Self>();
-    }
-}
+/// Whether or not the game is paused.
+#[derive(States, Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+#[states(scoped_entities)]
+pub struct Pause(pub bool);
 
+/// A system set for systems that shouldn't run while the game is paused.
 #[derive(SystemSet, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct PausableSystems;
-
-impl Configure for PausableSystems {
-    fn configure(app: &mut App) {
-        app.configure_sets(Update, PausableSystems.run_if(Pause::is_disabled));
-    }
-}

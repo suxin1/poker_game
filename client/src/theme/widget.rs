@@ -1,74 +1,155 @@
-use bevy::ecs::system::IntoObserverSystem;
+//! Helper functions for creating common widgets.
 
-use crate::animation::backup::Backup;
-use crate::animation::offset::NodeOffset;
+use std::borrow::Cow;
+
+use bevy::{
+    ecs::{spawn::SpawnWith, system::IntoObserverSystem},
+    prelude::*,
+    ui::Val::*,
+};
+
 use crate::prelude::*;
+use crate::theme::interaction::InteractionDisabled;
+use crate::theme::text::HAN_FONT_HANDLE;
+use crate::theme::{interaction::InteractionPalette, palette::*};
 
-pub fn overlay(z: i32) -> impl Bundle {
+/// A root UI node that fills the window and centers its content.
+pub fn ui_root(name: impl Into<Cow<'static, str>>) -> impl Bundle {
     (
-        Name::new("Overlay"),
-        Node::DEFAULT.full_size().abs(),
+        Name::new(name),
+        Node {
+            position_type: PositionType::Absolute,
+            width: Percent(100.0),
+            height: Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            flex_direction: FlexDirection::Column,
+            row_gap: Px(20.0),
+            ..default()
+        },
+        // Don't block picking events for other UI roots.
         Pickable::IGNORE,
-        GlobalZIndex(z),
     )
 }
 
-pub fn blocking_overlay(z: i32) -> impl Bundle {
+/// A app wide base text widget, all text should use this.
+fn text_base(text: impl AsRef<str>, font_size: Val, text_color: ThemeColor) -> impl Bundle {
+    let text = text.as_ref();
     (
-        Name::new("BlockingOverlay"),
-        Node::DEFAULT.full_size().abs(),
-        FocusPolicy::Block,
-        GlobalZIndex(z),
-    )
-}
-
-pub fn body(children: impl Bundle) -> impl Bundle {
-    (
-        Name::new("Body"),
-        Node {
-            display: Display::Block,
-            padding: UiRect::all(Vw(3.5)),
-            ..Node::DEFAULT.full_size()
+        Name::new(format!("Label(\"{text}\")")),
+        Text::new(text),
+        TextColor(THEME_COLOR_LIST[text_color]),
+        TextFont {
+            font: HAN_FONT_HANDLE,
+            ..default()
         },
-        children,
+        DynamicFontSize::new(font_size).with_step(8.0),
     )
 }
 
-pub fn column_center(children: impl Bundle) -> impl Bundle {
+/// A simple header label. Bigger than [`label`].
+pub fn header(text: impl Into<String>) -> impl Bundle {
     (
-        Name::new("ColumnCenter"),
-        Node::COLUMN_CENTER.full_size(),
-        children,
+        Name::new("Header"),
+        Text(text.into()),
+        TextFont::from_font_size(40.0),
+        TextColor(HEADER_TEXT),
     )
 }
 
-pub fn column_of_buttons(children: impl Bundle) -> impl Bundle {
+/// A simple text label.
+pub fn label(text: impl Into<String>) -> impl Bundle {
+    text_base(text.into(), Vw(3.5), ThemeColor::BodyText)
+}
+
+/// A large rounded button with text and an action defined as an [`Observer`].
+pub fn button<E, B, M, I>(text: impl Into<String>, action: I) -> impl Bundle
+where
+    E: Event,
+    B: Bundle,
+    I: IntoObserverSystem<E, B, M>,
+{
+    button_base(
+        text,
+        Vw(3.0),
+        action,
+        (
+            Node {
+                width: Vw(30.0),
+                height: Vw(7.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            BorderRadius::MAX,
+        ),
+    )
+}
+
+/// A small square button with text and an action defined as an [`Observer`].
+pub fn button_small<E, B, M, I>(text: impl Into<String>, action: I) -> impl Bundle
+where
+    E: Event,
+    B: Bundle,
+    I: IntoObserverSystem<E, B, M>,
+{
+    button_base(
+        text,
+        Vw(3.0),
+        action,
+        (
+            Node {
+                width: Vw(3.0),
+                height: Vw(3.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            BorderRadius::MAX,
+        ),
+    )
+}
+
+/// A simple button with text and an action defined as an [`Observer`]. The button's layout is provided by `button_bundle`.
+fn button_base<E, B, M, I>(
+    text: impl Into<String>,
+    font_size: Val,
+    action: I,
+    button_bundle: impl Bundle,
+) -> impl Bundle
+where
+    E: Event,
+    B: Bundle,
+    I: IntoObserverSystem<E, B, M>,
+{
+    let text = text.into();
+    let action = IntoObserverSystem::into_system(action);
     (
-        Name::new("ColumnOfButtons"),
-        Node {
-            margin: UiRect::vertical(Vw(2.5)),
-            row_gap: Vw(2.5),
-            ..Node::COLUMN_CENTER
+        Name::new("Button Inner"),
+        Button,
+        button_bundle,
+        BackgroundColor(BUTTON_BACKGROUND),
+        InteractionPalette {
+            none: BackgroundColor(THEME_COLOR_LIST[ThemeColor::Primary]),
+            hovered: BackgroundColor(THEME_COLOR_LIST[ThemeColor::PrimaryHovered]),
+            pressed: BackgroundColor(THEME_COLOR_LIST[ThemeColor::PrimaryPressed]),
+            disabled: BackgroundColor(THEME_COLOR_LIST[ThemeColor::PrimaryDisabled]),
         },
-        children,
+        children![(
+            text_base(text, font_size, ThemeColor::PrimaryText),
+            // Don't bubble picking events from the text up to the button.
+            Pickable::IGNORE,
+        )],
+        Patch(|entity| {
+            entity.observe(action);
+        }),
     )
 }
 
-pub fn row_of_buttons(children: impl Bundle) -> impl Bundle {
-    (
-        Name::new("RowOfButtons"),
-        Node {
-            margin: UiRect::vertical(Vw(2.5)),
-            column_gap: Vw(2.5),
-            ..Node::ROW_CENTER
-        },
-        children,
-    )
-}
-
+/// Layout
 pub fn stretch(children: impl Bundle) -> impl Bundle {
     (
-        Name::new("Stretch"),
+        Name::new("Stretch Layout"),
         Node {
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
@@ -76,136 +157,6 @@ pub fn stretch(children: impl Bundle) -> impl Bundle {
             ..default()
         },
         children,
-    )
-}
-
-pub fn header(text: impl AsRef<str>) -> impl Bundle {
-    (
-        label_base(Vw(5.0), ThemeColor::BodyText, text),
-        Node {
-            margin: UiRect::bottom(Vw(5.0)),
-            ..default()
-        },
-    )
-}
-
-pub fn big_label(text: impl AsRef<str>) -> impl Bundle {
-    label_base(Vw(5.0), ThemeColor::BodyText, text)
-}
-
-pub fn label(text: impl AsRef<str>) -> impl Bundle {
-    label_base(Vw(3.5), ThemeColor::BodyText, text)
-}
-
-pub fn paragraph(text: &'static str) -> impl Bundle {
-    (
-        Name::new("Paragraph"),
-        Node {
-            margin: UiRect::vertical(Vw(5.0)),
-            row_gap: Vw(1.4),
-            ..Node::COLUMN_MID
-        },
-        Children::spawn(SpawnIter(text.lines().map(label))),
-    )
-}
-
-fn label_base(font_size: Val, text_color: ThemeColor, text: impl AsRef<str>) -> impl Bundle {
-    let text = text.as_ref();
-    (
-        Name::new(format!("Label(\"{text}\")")),
-        RichText::from_sections(parse_rich(text)).with_justify(JustifyText::Center),
-        DynamicFontSize::new(font_size).with_step(8.0),
-        ThemeColorForText(vec![text_color]),
-    )
-}
-
-pub fn small_button<E, B, M, I>(text: impl Into<String>, action: I) -> impl Bundle
-where
-    E: Event,
-    B: Bundle,
-    I: Sync + IntoObserverSystem<E, B, M>,
-{
-    button_base(Vw(3.0), Vw(4.0), Vw(3.0), text, action)
-}
-
-pub fn button<E, B, M, I>(text: impl Into<String>, action: I) -> impl Bundle
-where
-    E: Event,
-    B: Bundle,
-    I: Sync + IntoObserverSystem<E, B, M>,
-{
-    button_base(Vw(30.0), Vw(7.0), Vw(3.0), text, action)
-}
-
-pub fn wide_button<E, B, M, I>(text: impl Into<String>, action: I) -> impl Bundle
-where
-    E: Event,
-    B: Bundle,
-    I: Sync + IntoObserverSystem<E, B, M>,
-{
-    button_base(Vw(38.0), Vw(7.0), Vw(3.0), text, action)
-}
-
-pub fn big_button<E, B, M, I>(text: impl Into<String>, action: I) -> impl Bundle
-where
-    E: Event,
-    B: Bundle,
-    I: Sync + IntoObserverSystem<E, B, M>,
-{
-    button_base(Vw(38.0), Vw(10.0), Vw(4.0), text, action)
-}
-
-fn button_base<E, B, M, I>(
-    width: Val,
-    height: Val,
-    font_size: Val,
-    text: impl Into<String>,
-    action: I,
-) -> impl Bundle
-where
-    E: Event,
-    B: Bundle,
-    I: Sync + IntoObserverSystem<E, B, M>,
-{
-    let text = text.into();
-    (
-        Name::new(format!("Button(\"{text}\")")),
-        Button,
-        Node {
-            width,
-            height,
-            ..Node::ROW_CENTER
-        },
-        BorderRadius::MAX,
-        ThemeColor::default().set::<BackgroundColor>(),
-        BoxShadow::from(ShadowStyle {
-            color: Color::BLACK.with_alpha(0.5),
-            x_offset: Val::ZERO,
-            y_offset: Vw(0.7),
-            spread_radius: Vw(0.5),
-            blur_radius: Vw(0.5),
-        }),
-        Backup::<BoxShadow>::default(),
-        InteractionTheme {
-            none: ThemeColor::Primary.set::<BackgroundColor>(),
-            hovered: ThemeColor::PrimaryHovered.set::<BackgroundColor>(),
-            pressed: ThemeColor::PrimaryPressed.set::<BackgroundColor>(),
-            disabled: ThemeColor::PrimaryDisabled.set::<BackgroundColor>(),
-        },
-        NodeOffset::default(),
-        InteractionTheme {
-            hovered: NodeOffset::new(Val::ZERO, Vw(-0.5)),
-            pressed: NodeOffset::new(Val::ZERO, Vw(0.5)),
-            ..default()
-        },
-        InteractionSfx,
-        children![(
-            label_base(font_size, ThemeColor::PrimaryText, text),
-            Pickable::IGNORE,
-        )],
-        Patch(|entity| {
-            entity.observe(action);
-        }),
     )
 }
 
@@ -231,62 +182,9 @@ where
         },
         marker,
         children![
-            (small_button("<", left_action), InteractionDisabled(false)),
+            (button_small("<", left_action), InteractionDisabled(false)),
             stretch(children![label("")]),
-            (small_button(">", right_action), InteractionDisabled(false)),
+            (button_small(">", right_action), InteractionDisabled(false))
         ],
     )
-}
-
-pub fn loading_bar<S: State + Clone + PartialEq + Eq + Hash + Debug>() -> impl Bundle {
-    (
-        Name::new("LoadingBar"),
-        Node {
-            width: Percent(60.0),
-            height: Vw(4.0),
-            margin: UiRect::all(Vw(1.0)),
-            padding: UiRect::all(Vw(0.5)),
-            border: UiRect::all(Vw(0.5)),
-            ..default()
-        },
-        ThemeColor::BodyText.set::<BorderColor>(),
-        children![(
-            Name::new("LoadingBarFill"),
-            Node::DEFAULT.full_height(),
-            ThemeColor::Primary.set::<BackgroundColor>(),
-            IsLoadingBarFill::<S>(PhantomData),
-        )],
-    )
-}
-
-#[derive(Component, Reflect)]
-#[reflect(Component)]
-pub struct IsLoadingBarFill<S: State + Clone + PartialEq + Eq + Hash + Debug>(
-    #[reflect(ignore)] PhantomData<S>,
-);
-
-impl<S: State + Clone + PartialEq + Eq + Hash + Debug + TypePath> Configure
-    for IsLoadingBarFill<S>
-{
-    fn configure(app: &mut App) {
-        app.register_type::<Self>();
-        app.add_systems(Update, update_loading_bar_fill::<S>);
-    }
-}
-
-#[cfg_attr(feature = "native_dev", hot)]
-fn update_loading_bar_fill<S: State + Clone + PartialEq + Eq + Hash + Debug>(
-    progress: Res<ProgressTracker<BevyState<S>>>,
-    mut fill_query: Query<&mut Node, With<IsLoadingBarFill<S>>>,
-    mut last_done: Local<u32>,
-) {
-    let Progress { done, total } = progress.get_global_combined_progress();
-    if *last_done == done {
-        return;
-    }
-    *last_done = done;
-
-    for mut node in &mut fill_query {
-        node.width = Percent(100.0 * done as f32 / total as f32);
-    }
 }
