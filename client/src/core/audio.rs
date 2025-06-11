@@ -1,14 +1,12 @@
+use crate::prelude::*;
 use bevy::audio::AudioPlugin;
 use bevy::math::ops::sin;
-use rand::{rng};
-use crate::prelude::*;
-
+use rand::rng;
 
 pub(super) fn plugin(app: &mut App) {
-    app.configure::<AudioSettings>();
+    app.configure::<(AudioSettings, MusicAudio, UiAudio)>();
     app.add_plugins(AudioPlugin::default());
 }
-
 
 /// Audio settings.
 #[derive(Resource, Reflect, Clone, Debug)]
@@ -33,6 +31,13 @@ impl Configure for AudioSettings {
     fn configure(app: &mut App) {
         app.register_type::<Self>();
         app.init_resource::<Self>();
+
+        app.add_systems(
+            Update,
+            apply_audio_settings
+                .run_if(resource_changed::<Self>)
+                .in_set(AppSystems::Update),
+        );
     }
 }
 
@@ -48,9 +53,9 @@ impl AudioSettings {
 
 fn apply_audio_settings(
     audio_settings: Res<AudioSettings>,
-    music_audio_query: Query<Entity, With<IsMusicAudio>>,
-    ui_audio_query: Query<Entity, With<IsUiAudio>>,
-    mut volume_query: Query<(Option<&mut PlaybackSettings>, Option<&mut AudioSink>)>
+    music_audio_query: Query<Entity, With<MusicAudio>>,
+    ui_audio_query: Query<Entity, With<UiAudio>>,
+    mut volume_query: Query<(Option<&mut PlaybackSettings>, Option<&mut AudioSink>)>,
 ) {
     // Apply music volume
     let volume = audio_settings.music_volume();
@@ -76,13 +81,12 @@ fn apply_audio_settings(
     }
 }
 
-
 /// A component to indicate that an audio source is music.
 #[derive(Component, Reflect, Debug)]
 #[reflect(Component)]
-struct IsMusicAudio;
+struct MusicAudio;
 
-impl Configure for IsMusicAudio {
+impl Configure for MusicAudio {
     fn configure(app: &mut App) {
         app.register_type::<Self>();
     }
@@ -93,16 +97,16 @@ pub fn music_audio(audio_settings: &AudioSettings, handle: Handle<AudioSource>) 
         // Name::new("Music Audio"),
         AudioPlayer(handle),
         PlaybackSettings::LOOP.with_volume(audio_settings.music_volume()),
-        IsMusicAudio,
+        MusicAudio,
     )
 }
 
 /// A component to indicate that an audio source is music.
 #[derive(Component, Reflect, Debug)]
 #[reflect(Component)]
-struct IsUiAudio;
+struct UiAudio;
 
-impl Configure for IsUiAudio {
+impl Configure for UiAudio {
     fn configure(app: &mut App) {
         app.register_type::<Self>();
     }
@@ -112,7 +116,9 @@ pub fn ui_audio(audio_settings: &AudioSettings, handle: Handle<AudioSource>) -> 
     (
         // Name::new("UI Audio"),
         AudioPlayer(handle),
-        PlaybackSettings::DESPAWN.with_volume(audio_settings.ui_volume()).with_speed(rng().random_range(0.9..1.5)),
-        IsUiAudio,
+        PlaybackSettings::DESPAWN
+            .with_volume(audio_settings.ui_volume())
+            .with_speed(rng().random_range(0.9..1.5)),
+        UiAudio,
     )
 }

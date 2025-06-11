@@ -1,14 +1,12 @@
 // Support configuring Bevy lints within code.
 #![cfg_attr(bevy_lint, feature(register_tool), register_tool(bevy))]
-// Disable console on Windows for non-dev builds.
+// Disable console on Windows for non-dev_tools builds.
 #![cfg_attr(not(feature = "dev"), windows_subsystem = "windows")]
 
 mod animation;
 mod asset_tracking;
 // mod audio;
 mod demo;
-#[cfg(feature = "dev")]
-mod dev_tools;
 mod menus;
 mod screens;
 mod theme;
@@ -33,7 +31,6 @@ impl Plugin for AppPlugin {
             asset_tracking::plugin,
             demo::plugin,
             #[cfg(feature = "dev")]
-            dev_tools::plugin,
             animation::plugin,
             menus::plugin,
             screens::plugin,

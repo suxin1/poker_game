@@ -1,11 +1,14 @@
 pub mod assets;
 
+pub mod audio;
 pub mod pause;
 pub mod window;
-pub mod audio;
 
-use bevy::audio::AudioPlugin;
+#[cfg(feature = "dev")]
+pub mod dev_tools;
+
 use crate::prelude::*;
+use bevy::audio::AudioPlugin;
 
 pub(super) fn plugin(app: &mut App) {
     app.configure::<AppSystems>();
@@ -20,7 +23,11 @@ pub(super) fn plugin(app: &mut App) {
             .add_before::<WindowPlugin>(assets::plugin),
     );
 
-    app.add_plugins((pause::plugin));
+    app.add_plugins((
+        pause::plugin,
+        #[cfg(feature = "dev")]
+        dev_tools::plugin,
+    ));
 }
 
 /// High-level groupings of systems for the app in the `Update` schedule.

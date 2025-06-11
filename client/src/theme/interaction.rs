@@ -22,6 +22,9 @@ pub(super) fn plugin(app: &mut App) {
 #[reflect(Component)]
 pub struct InteractionDisabled(pub bool);
 
+/// Palette for widget interactions. Add this to an entity that supports
+/// [`Interaction`]s, such as a button, to change its [`BackgroundColor`] based
+/// on the current interaction state.
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
 #[require(Interaction)]
@@ -74,33 +77,6 @@ fn apply_interaction_palette<C: Component<Mutability = Mutable> + Clone>(
         //     .into();
     }
 }
-
-/// Palette for widget interactions. Add this to an entity that supports
-/// [`Interaction`]s, such as a button, to change its [`BackgroundColor`] based
-/// on the current interaction state.
-// #[derive(Component, Debug, Reflect)]
-// #[reflect(Component)]
-// pub struct InteractionPalette {
-//     pub none: Color,
-//     pub hovered: Color,
-//     pub pressed: Color,
-// }
-//
-// fn apply_interaction_palette(
-//     mut palette_query: Query<
-//         (&Interaction, &InteractionPalette, &mut BackgroundColor, Option<&InteractionDisabled>),
-//         Changed<Interaction>,
-//     >,
-// ) {
-//     for (interaction, palette, mut background, disabled) in &mut palette_query {
-//         *background = match interaction {
-//             Interaction::None => palette.none,
-//             Interaction::Hovered => palette.hovered,
-//             Interaction::Pressed => palette.pressed,
-//         }
-//         .into();
-//     }
-// }
 
 #[derive(Resource, Asset, Clone, Reflect)]
 #[reflect(Resource)]
