@@ -1,4 +1,4 @@
-
+use std::cmp::Ordering;
 use std::convert::TryInto;
 
 use crate::cards::{Card, CardNumericValue, CardValue};
@@ -37,17 +37,18 @@ pub enum Combination {
 
 impl Combination {
     pub fn is_boom(&self) -> bool {
-        matches!(self, Combination::ThreeOfAKind(_) | Combination::FourOfAKind(_) | Combination::ThreeStraitPair(_))
+        matches!(
+            self,
+            Combination::ThreeOfAKind(_)
+                | Combination::FourOfAKind(_)
+                | Combination::ThreeStraitPair(_)
+        )
     }
 
     pub fn gt(&self, last_combo: &Self) -> bool {
         match (self, &last_combo) {
-            (Self::Single(a), Self::Single(b)) => {
-                a > b
-            }
-            (Self::Pair(a), Self::Pair(b)) => {
-                a > b
-            }
+            (Self::Single(a), Self::Single(b)) => a > b,
+            (Self::Pair(a), Self::Pair(b)) => a > b,
             (Self::Straight(a), Self::Straight(b)) => {
                 if a.len() != b.len() {
                     return false;
@@ -57,21 +58,26 @@ impl Combination {
                 a.sort();
                 b.sort();
                 a > b
-            }
+            },
             (Self::ThreeStraitPair(a), Self::ThreeStraitPair(b)) => {
                 let mut a = a.clone();
                 let mut b = b.clone();
                 a.sort();
                 b.sort();
                 a > b
-            }
+            },
             _ => {
                 if self.is_boom() {
                     return self > last_combo;
                 }
                 false
-            }
+            },
         }
+    }
+
+    pub fn analyze(cards: Vec<Card>) {
+        let analyzer = HandAnalyzer::from_cards(cards);
+        analyzer.analyze();
     }
 }
 
@@ -81,6 +87,10 @@ pub struct HandAnalyzer(Vec<Card>);
 impl HandAnalyzer {
     pub fn new() -> Self {
         Self(Vec::new())
+    }
+
+    pub fn from_cards(cards: Vec<Card>) -> Self {
+        Self(cards)
     }
 
     pub fn set(&mut self, mut cards: Vec<Card>) -> &mut Self {
@@ -99,41 +109,52 @@ impl HandAnalyzer {
                 } else {
                     Combination::Invalid
                 }
-            }
+            },
             3 => {
                 if self.is_consecutive() {
                     Combination::Straight(self.0.clone())
                 } else if self.is_three_of_a_kind() {
-                    Combination::ThreeOfAKind([self.0[0].clone(), self.0[1].clone(), self.0[2].clone()])
+                    Combination::ThreeOfAKind([
+                        self.0[0].clone(),
+                        self.0[1].clone(),
+                        self.0[2].clone(),
+                    ])
                 } else {
                     Combination::Invalid
                 }
             },
             4 => {
                 if self.is_four_of_a_kind() {
-                    Combination::FourOfAKind([self.0[0].clone(), self.0[1].clone(), self.0[2].clone(), self.0[3].clone()])
+                    Combination::FourOfAKind([
+                        self.0[0].clone(),
+                        self.0[1].clone(),
+                        self.0[2].clone(),
+                        self.0[3].clone(),
+                    ])
                 } else if self.is_consecutive() {
                     Combination::Straight(self.0.clone())
                 } else {
                     Combination::Invalid
                 }
-            }
+            },
             6 => {
                 if self.is_three_strait_pair() {
-                    Combination::ThreeStraitPair(self.0.clone().try_into().expect("Expected 6 cards"))
+                    Combination::ThreeStraitPair(
+                        self.0.clone().try_into().expect("Expected 6 cards"),
+                    )
                 } else if self.is_consecutive() {
                     Combination::Straight(self.0.clone())
                 } else {
                     Combination::Invalid
                 }
-            }
+            },
             _ => {
-                if self.0.len() >= 3 && self.is_consecutive(){
+                if self.0.len() >= 3 && self.is_consecutive() {
                     Combination::Straight(self.0.clone())
                 } else {
                     Combination::Invalid
                 }
-            }
+            },
         }
     }
 
@@ -143,7 +164,7 @@ impl HandAnalyzer {
 
     fn is_consecutive(&self) -> bool {
         let len = self.0.len();
-        if len < 3  {
+        if len < 3 {
             return false;
         }
 
@@ -166,7 +187,6 @@ impl HandAnalyzer {
             && self.0[0].value == self.0[1].value
             && self.0[1].value == self.0[2].value
     }
-
 
     fn is_four_of_a_kind(&self) -> bool {
         self.0.len() == 4
@@ -198,10 +218,11 @@ impl HandAnalyzer {
 
 #[cfg(test)]
 mod tests {
+    use std::cmp::Ordering;
     use super::*;
-    use crate::cards::{Card, Suit, CardValue};
     use crate::cards::CardValue::{Ace, Five, Four, Jack, King, Nine, Queen, Six, Ten, Three, Two};
     use crate::cards::Suit::Spades;
+    use crate::cards::{Card, CardValue, Suit};
 
     // 辅助函数：创建单张牌
     fn card(value: CardValue, suit: Suit) -> Card {
@@ -233,7 +254,7 @@ mod tests {
             Combination::Pair(pair) => {
                 assert_eq!(pair[0].value, CardValue::Ten);
                 assert_eq!(pair[1].value, CardValue::Ten);
-            }
+            },
             _ => panic!("Expected Pair"),
         }
     }
@@ -253,7 +274,7 @@ mod tests {
                 assert_eq!(triple[0].value, CardValue::Seven);
                 assert_eq!(triple[1].value, CardValue::Seven);
                 assert_eq!(triple[2].value, CardValue::Seven);
-            }
+            },
             _ => panic!("Expected ThreeOfAKind"),
         }
     }
@@ -273,7 +294,7 @@ mod tests {
             Combination::FourOfAKind(quad) => {
                 assert_eq!(quad[0].value, CardValue::King);
                 assert_eq!(quad[3].value, CardValue::King);
-            }
+            },
             _ => panic!("Expected FourOfAKind"),
         }
     }
@@ -296,7 +317,7 @@ mod tests {
                 assert_eq!(six_cards[0].value, CardValue::Five);
                 assert_eq!(six_cards[1].value, CardValue::Five);
                 assert_eq!(six_cards[4].value, CardValue::Seven);
-            }
+            },
             _ => panic!("Expected ThreeStraitPair"),
         }
     }
@@ -316,7 +337,7 @@ mod tests {
                 assert_eq!(straight.len(), 3);
                 assert_eq!(straight[0].value, CardValue::Three);
                 assert_eq!(straight[2].value, CardValue::Five);
-            }
+            },
             _ => panic!("Expected Straight"),
         }
     }
@@ -338,7 +359,7 @@ mod tests {
                 assert_eq!(straight.len(), 5);
                 assert_eq!(straight[0].value, CardValue::Nine);
                 assert_eq!(straight[4].value, CardValue::King);
-            }
+            },
             _ => panic!("Expected Straight"),
         }
     }
@@ -390,7 +411,7 @@ mod tests {
             card(CardValue::Five, Suit::Diamonds),
             card(CardValue::Six, Suit::Hearts),
             card(CardValue::Six, Suit::Diamonds),
-            card(CardValue::Eight, Suit::Hearts),  // 这里应该是7
+            card(CardValue::Eight, Suit::Hearts), // 这里应该是7
             card(CardValue::Eight, Suit::Diamonds),
         ];
         analyzer.set(cards);
@@ -420,7 +441,7 @@ mod tests {
             Combination::Straight(straight) => {
                 assert_eq!(straight[0].value, CardValue::Ten);
                 assert_eq!(straight[4].value, CardValue::Ace);
-            }
+            },
             _ => panic!("Expected Straight"),
         }
     }
@@ -428,7 +449,12 @@ mod tests {
     #[test]
     fn test_card_comparison() {
         use Combination::*;
+        let card_10_s = card(CardValue::Ten, Suit::Spades);
+        let card_10_a = card(CardValue::Ten, Suit::Hearts);
+        let card_10_d = card(CardValue::Ten, Suit::Diamonds);
+        let card_10_c = card(CardValue::Ten, Suit::Clubs);
 
+        assert!(!Pair([card_10_c, card_10_d]).gt(&Pair([card_10_s, card_10_a])));
         // 单张比较
         assert!(&Single(Card::new(Spades, Ace)).gt(&Single(Card::new(Spades, King))));
 
@@ -439,34 +465,27 @@ mod tests {
         );
 
         // 顺子比较
-        let straight1 = vec![
+        let straight_3_start_with_10 = Straight(vec![
             Card::new(Spades, Ten),
             Card::new(Spades, Jack),
             Card::new(Spades, Queen),
-        ];
-        let straight2 = vec![
+        ]);
+        let straight_3_start_with_9 = Straight(vec![
             Card::new(Spades, Nine),
             Card::new(Spades, Ten),
             Card::new(Spades, Jack),
-        ];
-        assert!(Straight(straight1.clone()).gt(&Straight(straight2)));
-
-        // 无序顺子比较
-        let straight2 = vec![
+        ]);
+        let straight_3_start_with_9_nord = Straight(vec![
             Card::new(Spades, Jack),
             Card::new(Spades, Ten),
             Card::new(Spades, Nine),
-        ];
-        assert!(Straight(straight1.clone()).gt(&Straight(straight2)));
-
-        // 不同长度顺子比较
-        let straight2 = vec![
+        ]);
+        let straight_4_start_with_9 = Straight(vec![
             Card::new(Spades, Nine),
             Card::new(Spades, Ten),
             Card::new(Spades, Jack),
             Card::new(Spades, Ace),
-        ];
-        assert!(!Straight(straight1.clone()).gt(&Straight(straight2)));
+        ]);
 
         let three_boom_2 = ThreeOfAKind([
             Card::new(Spades, Two),
@@ -506,6 +525,20 @@ mod tests {
             Card::new(Spades, Six),
         ]);
 
+        let boom_4_a = FourOfAKind([
+            Card::new(Spades, Four),
+            Card::new(Spades, Four),
+            Card::new(Spades, Four),
+            Card::new(Spades, Four),
+        ]);
+        //  顺子比较
+        assert!(straight_3_start_with_10.gt(&straight_3_start_with_9));
+        assert!(!straight_3_start_with_9.gt(&straight_3_start_with_10));
+        //  无序顺子比较
+        assert!(straight_3_start_with_10.gt(&straight_3_start_with_9_nord));
+        // 不同长度顺子比较
+        assert!(!straight_4_start_with_9.gt(&straight_3_start_with_9));
+        // 炸弹比较
         assert!(!four_boom_3.gt(&four_boom_3));
         assert!(!four_boom_3.gt(&four_boom_2));
         assert!(!three_boom_2.gt(&four_boom_3));
@@ -513,12 +546,8 @@ mod tests {
 
         // 炸弹比较
         assert!(
-            &FourOfAKind([
-                Card::new(Spades, Ace),
-                Card::new(Spades, Ace),
-                Card::new(Spades, Ace),
-                Card::new(Spades, Ace)
-            ]).gt(&Straight(straight1))
+            boom_4_a
+            .gt(&straight_3_start_with_9)
         );
     }
 }

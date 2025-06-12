@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
+use std::time::Instant;
 use strum::IntoEnumIterator;
 
 use crate::cards::{Card, CardValue, Deck, Suit};
@@ -53,6 +54,24 @@ impl PlayerSet {
         count == 4
     }
 
+    /// 检查并移除手牌
+    fn remove_cards(&mut self, cards: &[Card]) -> Result<(), String> {
+        let hands: HashSet<_> = self.hands.iter().collect();
+        for card in cards {
+            if !hands.contains(card) {
+                return Err(format!("玩家没有这张牌: {:?}", card));
+            }
+        }
+
+        let to_remove: HashSet<_> = cards.iter().collect();
+
+        self.hands = self.hands.drain(..).filter(|card| !to_remove.contains(card)).collect();
+
+        Ok(())
+    }
+
+
+    /// 获取玩家某张牌型的没有的花色
     fn get_complement_suit(&self, card_value: CardValue) -> Vec<Card> {
         let mut suits = Vec::new();
         for suit in Suit::iter() {
@@ -67,6 +86,7 @@ impl PlayerSet {
     fn reset(&mut self) {
         self.score = 0;
         self.ready = false;
+        self.hands.clear();
     }
 }
 
@@ -101,6 +121,8 @@ pub struct GameState {
     last_played_set_index: Option<PlayerSetIndex>,
     last_played_cards: Option<Combination>,
     table_score_counter: i32,
+
+    finished_order: VecDeque<(PlayerSetIndex, Instant)>,
 }
 
 impl GameState {
@@ -123,6 +145,7 @@ impl GameState {
             last_played_set_index: None,
             is_hidden_card_shown: false,
             table_score_counter: 0,
+            finished_order: VecDeque::new(),
         }
     }
 
@@ -171,6 +194,7 @@ impl GameState {
         self.last_played_cards = None;
         self.last_played_set_index = None;
         self.is_hidden_card_shown = false;
+        self.finished_order.clear();
     }
 
     /// 洗牌
@@ -263,7 +287,7 @@ impl GameState {
         player_set_index: PlayerSetIndex,
         cards: Vec<Card>,
     ) -> Result<(), String> {
-        let combo = self.hand_analyzer.set(cards).analyze();
+        let combo = self.hand_analyzer.set(cards.clone()).analyze();
 
         if combo == Combination::Invalid {
             return Err("无效牌型".to_string());
@@ -273,9 +297,18 @@ impl GameState {
                 return Err("牌型太弱".to_string());
             }
         }
+        // 获取玩家手牌的可变引用
+        let player_set = &mut self.sets[player_set_index];
 
+        let result = player_set.remove_cards(&cards);
+        
+        if let Err(err) = result {
+            return Err(err);
+        }
+
+        // === 更新游戏状态 ===
         self.last_played_set_index = Some(player_set_index);
-        self.add_combo_to_table_score(&combo);
+        self.add_table_score(&combo);
         self.last_played_cards = Some(combo);
         self.next_player();
         Ok(())
@@ -299,7 +332,7 @@ impl GameState {
         }
     }
 
-    fn add_combo_to_table_score(&mut self, combo: &Combination) {
+    fn add_table_score(&mut self, combo: &Combination) {
         match combo {
             Combination::Single(_) => {
                 self.table_score_counter += 1;
@@ -331,11 +364,6 @@ mod tests {
     use rand::rng;
     use rand::seq::IndexedRandom;
 
-    // 创建测试用的特殊牌 (黑桃7)
-    fn special_card() -> Card {
-        Card::new(Suit::Spades, CardValue::Seven)
-    }
-
     #[test]
     fn test_initial_state() {
         let state = GameState::nwe();
@@ -363,7 +391,7 @@ mod tests {
         let has_special = state
             .sets
             .iter()
-            .any(|set| set.hands.contains(&special_card()));
+            .any(|set| set.hands.contains(&state.special_card));
         assert!(has_special);
     }
 
@@ -377,7 +405,7 @@ mod tests {
         match state.stage {
             Stage::CallCard(caller_index) => {
                 // 验证叫牌者持有特殊牌
-                assert!(state.sets[caller_index].hands.contains(&special_card()));
+                assert!(state.sets[caller_index].hands.contains(&state.special_card));
             },
             _ => panic!("Should be in CallCard stage"),
         }

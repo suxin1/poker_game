@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -26,7 +27,7 @@ pub trait CardNumericValue {
     fn int(&self) -> u8;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, EnumIter)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Serialize, Deserialize, EnumIter)]
 pub enum Suit {
     Spades,   // 黑桃
     Hearts,   // 红桃
@@ -34,10 +35,23 @@ pub enum Suit {
     Clubs,    // 梅花
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+/// Card 手动实现了 Ord trait 来实现只针对CardValue来排序，忽略suit，仅用于排序
+/// 注意，为确保每张牌（Card）的唯一性，不要轻易手动实现 PartialEq， Eq。
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Card {
     pub value: CardValue,
     pub suit: Suit,
+}
+
+impl PartialOrd for Card {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other)) // 复用 Ord 的实现
+    }
+}
+impl Ord for Card {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.value.cmp(&other.value)
+    }
 }
 
 impl Card {
