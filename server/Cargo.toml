@@ -1,0 +1,23 @@
+[package]
+name = "server"
+authors = ["suxin1"]
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.140"
+bincode = { version = "2.0.1", features = ["serde"] }
+renet2 = { version = "0.9.1", features = ["default"] }
+renet2_netcode = { version = "0.9.1", default-features = false, features = ["serde", "native_transport", "wt_server_transport", "ws_server_transport"] }
+tokio = "1"
+axum = "0.8"
+
+state = { path = "../state" }
+
+log = "0.4"
+env_logger = "0.11.8"
+url = "2.5.4"
+
+[lints]
+workspace = true

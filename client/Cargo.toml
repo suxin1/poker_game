@@ -46,6 +46,18 @@ serde = "1"
 # Utility
 tiny_bail = "0.4"
 variadics_please = "1.1"
+anyhow = "1.0.98"
+
+# Network
+bevy_renet2 = { version = "0.9" }
+renet2_netcode = { version = "0.9", default-features = false, features = [
+    "serde", "wt_client_transport", "ws_client_transport"
+] }
+bincode = { version = "2.0.1", features = ["serde"] }
+
+url = "2.5.4"
+bevy_http_client = "0.8"
+web-time = "1.1.0"
 
 # Compile low-severity logs out of native builds for performance.
 log = { version = "0.4", features = [
@@ -73,7 +85,14 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [features]
 # Default to a native dev build.
-default = ["dev_native"]
+default = ["web"]
+web = [
+    "bevy/dynamic_linking",
+    "bevy/bevy_dev_tools",
+    "bevy/bevy_ui_debug",
+    "bevy_renet2/ws_client_transport",
+    "bevy/web"
+]
 dev = [
     # Improve compile times for dev builds by linking Bevy as a dynamic library.
     "bevy/dynamic_linking",

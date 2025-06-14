@@ -13,6 +13,7 @@ mod theme;
 mod core;
 mod prelude;
 mod utils;
+mod network;
 
 use crate::prelude::*;
 fn main() -> AppExit {
@@ -30,6 +31,7 @@ impl Plugin for AppPlugin {
         app.add_plugins((
             asset_tracking::plugin,
             demo::plugin,
+            network::plugin,
             #[cfg(feature = "dev")]
             animation::plugin,
             menus::plugin,
