@@ -32,6 +32,8 @@ bevy = { version = "0.16", default-features = false, features = [
 ] }
 rand = "0.9"
 
+state = {path = "../state", features = ["bevy"]}
+
 # Assets
 bevy_asset_loader = { version = "0.23", features = ["2d", "progress_tracking"] }
 bevy_common_assets = { version = "0.13", default-features = false, features = [
@@ -85,7 +87,7 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [features]
 # Default to a native dev build.
-default = ["web"]
+default = ["dev"]
 web = [
     "bevy/dynamic_linking",
     "bevy/bevy_dev_tools",

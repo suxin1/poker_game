@@ -70,11 +70,11 @@ fn apply_interaction_palette<C: Component<Mutability = Mutable> + Clone>(
         }
         .clone();
         // *value = match interaction {
-        //     Interaction::None => palette.none,
-        //     Interaction::Hovered => palette.hovered,
-        //     Interaction::Pressed => palette.pressed,
+        //     Interaction::None => &palette.none,
+        //     Interaction::Hovered => &palette.hovered,
+        //     Interaction::Pressed => &palette.pressed,
         // }
-        //     .into();
+        // .clone();
     }
 }
 
@@ -101,14 +101,16 @@ fn play_on_hover_sound_effect(
     trigger: Trigger<Pointer<Over>>,
     audio_settings: Res<AudioSettings>,
     interaction_assets: Option<Res<InteractionAssets>>,
-    interaction_query: Query<(), With<Interaction>>,
+    interaction_query: Query<Option<&InteractionDisabled>, With<Interaction>>,
     mut commands: Commands,
 ) {
-    let Some(interaction_assets) = interaction_assets else {
-        return;
-    };
+    let target = trigger.target();
+    let interaction_assets = r!(interaction_assets);
+    let disabled = rq!(interaction_query.get(target));
 
-    if interaction_query.contains(trigger.target()) {
+    rq!(!matches!(disabled, Some(InteractionDisabled(true))));
+
+    if interaction_query.contains(target) {
         commands.spawn(ui_audio(&audio_settings, interaction_assets.hover.clone()));
     }
 }
@@ -117,12 +119,14 @@ fn play_on_click_sound_effect(
     trigger: Trigger<Pointer<Click>>,
     audio_settings: Res<AudioSettings>,
     interaction_assets: Option<Res<InteractionAssets>>,
-    interaction_query: Query<(), With<Interaction>>,
+    interaction_query: Query<Option<&InteractionDisabled>, With<Interaction>>,
     mut commands: Commands,
 ) {
-    let Some(interaction_assets) = interaction_assets else {
-        return;
-    };
+    let target = trigger.target();
+    let interaction_assets = r!(interaction_assets);
+    let disabled = rq!(interaction_query.get(target));
+
+    rq!(!matches!(disabled, Some(InteractionDisabled(true))));
 
     if interaction_query.contains(trigger.target()) {
         commands.spawn(ui_audio(&audio_settings, interaction_assets.click.clone()));

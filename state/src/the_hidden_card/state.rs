@@ -5,7 +5,8 @@ use strum::IntoEnumIterator;
 
 use crate::cards::{Card, CardValue, Deck, Suit};
 use crate::player::Player;
-use crate::the_hidden_card::{Combination, HandAnalyzer};
+
+pub use crate::the_hidden_card::prelude::*;
 
 type PlayerSetIndex = usize;
 type CalleeSetIndex = usize;
@@ -99,11 +100,14 @@ pub enum Stage {
     Ended,                    // 游戏结束
 }
 
+#[derive(Debug, Clone)]
 pub enum GameMode {
     HiddenAllies((CallerIndex, CalleeSetIndex, Card)), // 暗叫组队
     OneVsThree(PlayerSetIndex),                        // 包牌
 }
 
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "bevy", derive(bevy_ecs::prelude::Resource))]
 pub struct GameState {
     sets: [PlayerSet; 4],
     deck: Deck,
@@ -126,7 +130,7 @@ pub struct GameState {
 }
 
 impl GameState {
-    fn nwe() -> Self {
+    pub fn new() -> Self {
         let mut sets: [PlayerSet; 4] = Default::default();
 
         Self {
@@ -366,7 +370,7 @@ mod tests {
 
     #[test]
     fn test_initial_state() {
-        let state = GameState::nwe();
+        let state = GameState::new();
         assert_eq!(state.stage, Stage::PreGame);
         assert!(state.mode.is_none());
         assert!(state.lead.is_none());
@@ -376,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_pre_start_flow() {
-        let mut state = GameState::nwe();
+        let mut state = GameState::new();
 
         // 准备阶段
         state.prepare_game();
@@ -397,7 +401,7 @@ mod tests {
 
     #[test]
     fn test_call_card_stage_transition() {
-        let mut state = GameState::nwe();
+        let mut state = GameState::new();
         state.shuffle();
         state.prepare_game();
 
@@ -413,7 +417,7 @@ mod tests {
 
     #[test]
     fn test_blocking_start() {
-        let mut state = GameState::nwe();
+        let mut state = GameState::new();
         state.prepare_game();
         state.to_call_card_stage();
 
@@ -434,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_call_card_start() {
-        let mut state = GameState::nwe();
+        let mut state = GameState::new();
         state.prepare_game();
         state.to_call_card_stage();
 
@@ -460,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_play_card_validation() {
-        let mut state = GameState::nwe();
+        let mut state = GameState::new();
         state.stage = Stage::InGame; // 设置为游戏中
 
         // 构造合法牌型

@@ -24,7 +24,7 @@ impl CardNumericValue for CardValue {
 }
 
 /// 牌型枚举
-#[derive(Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Combination {
     Single(Card),               // 单张
     Pair([Card; 2]),            // 对子
@@ -45,6 +45,7 @@ impl Combination {
         )
     }
 
+    /// 牌型比较
     pub fn gt(&self, last_combo: &Self) -> bool {
         match (self, &last_combo) {
             (Self::Single(a), Self::Single(b)) => a > b,
@@ -82,6 +83,7 @@ impl Combination {
 }
 
 /// 牌型分析
+#[derive(Debug, Clone)]
 pub struct HandAnalyzer(Vec<Card>);
 
 impl HandAnalyzer {

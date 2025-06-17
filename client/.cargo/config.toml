@@ -4,3 +4,7 @@ rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
 
 [build]
 target = "wasm32-unknown-unknown"
+
+[env]
+WASM_SERVER_RUNNER_ADDRESS = "0.0.0.0"
+WASM_SERVER_RUNNER_CUSTOM_INDEX_HTML = "web/index.html"

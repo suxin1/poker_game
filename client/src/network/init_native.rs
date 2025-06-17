@@ -8,7 +8,7 @@ use bevy_renet2::netcode::{ClientAuthentication, NETCODE_USER_DATA_BYTES};
 use bevy_renet2::prelude::{ConnectionConfig, DefaultChannel, RenetClient};
 use renet2_netcode::{NetcodeClientTransport, ServerCertHash, WebServerDestination};
 use serde::{Deserialize, Serialize};
-use crate::screens::Screen;
+use crate::screens::ScreenState;
 
 pub(crate) fn plugin(app: &mut App) {
 

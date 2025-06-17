@@ -1,4 +1,4 @@
-use crate::screens::Screen;
+use crate::screens::ScreenState;
 use bevy::prelude::*;
 use bevy_renet2::netcode::{NetcodeClientPlugin, NetcodeTransportError};
 use bevy_renet2::prelude::{RenetClientPlugin, client_disconnected};

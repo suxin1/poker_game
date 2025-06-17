@@ -2,7 +2,7 @@
 
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
 
-use crate::{menus::Menu, screens::Screen, theme::widget};
+use crate::{menus::Menu, screens::ScreenState, theme::widget};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(Menu::Pause), spawn_pause_menu);
@@ -34,8 +34,8 @@ fn close_menu(_: Trigger<Pointer<Click>>, mut next_menu: ResMut<NextState<Menu>>
     next_menu.set(Menu::None);
 }
 
-fn quit_to_title(_: Trigger<Pointer<Click>>, mut next_screen: ResMut<NextState<Screen>>) {
-    next_screen.set(Screen::Title);
+fn quit_to_title(_: Trigger<Pointer<Click>>, mut next_screen: ResMut<NextState<ScreenState>>) {
+    next_screen.set(ScreenState::Title);
 }
 
 fn go_back(mut next_menu: ResMut<NextState<Menu>>) {

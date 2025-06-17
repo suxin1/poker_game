@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::{
     asset_tracking::LoadResource,
     demo::player::{PlayerAssets, player},
-    screens::Screen,
+    screens::ScreenState,
 };
 use crate::core::audio::{music_audio, AudioSettings};
 
@@ -42,7 +42,7 @@ pub fn spawn_level(
         Name::new("Level"),
         Transform::default(),
         Visibility::default(),
-        StateScoped(Screen::Gameplay),
+        StateScoped(ScreenState::Gameplay),
         children![
             player(400.0, &player_assets, &mut texture_atlas_layouts),
             (

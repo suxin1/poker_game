@@ -14,6 +14,7 @@ mod core;
 mod prelude;
 mod utils;
 mod network;
+mod game;
 
 use crate::prelude::*;
 fn main() -> AppExit {
@@ -37,6 +38,7 @@ impl Plugin for AppPlugin {
             menus::plugin,
             screens::plugin,
             theme::plugin,
+            game::plugin,
         ));
 
         // Spawn the main camera.

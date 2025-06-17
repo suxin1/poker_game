@@ -14,17 +14,17 @@ use renet2_netcode::{
     WebTransportClientConfig, webtransport_is_available_with_cert_hashes,
 };
 use crate::network::PROTOCOL_ID;
-use crate::screens::Screen;
+use crate::screens::ScreenState;
 
 pub(crate) fn plugin(app: &mut App) {
     app.register_request_type::<ClientConnectionInfo>();
     app.add_systems(
-        OnEnter(Screen::Title),
+        OnEnter(ScreenState::Title),
         send_request.run_if(run_once),
     );
     app.add_systems(
         Update,
-        handle_response.run_if(in_state(Screen::Title)),
+        handle_response.run_if(in_state(ScreenState::Title)),
     );
     app.add_systems(
         PreUpdate,

@@ -18,6 +18,8 @@ renetcode2 = { git = "https://github.com/suxin1/renet2.git", rev = "fde66f5a"}
 bevy_renet2 = { git = "https://github.com/suxin1/renet2.git", rev = "fde66f5a"}
 bevy_http_client = { git = "https://github.com/suxin1/bevy_http_client.git", rev = "5bb2bd8"}
 
+bevy_picking = {path = "bevy_picking"}
+
 [workspace.lints.clippy]
 # Bevy supplies arguments to systems via dependency injection, so it's natural for systems to
 # request more than 7 arguments, which would undesirably trigger this lint.
