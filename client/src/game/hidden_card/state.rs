@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use state::the_hidden_card::state::GameState;
+use shared::the_hidden_card::state::GameState;
 use crate::screens::ScreenState;
 
 pub(super) fn plugin(app: &mut App) {
@@ -11,7 +11,7 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 fn init_resource(mut cmds: Commands) {
-    cmds.insert_resource(GameState::new());
+    cmds.insert_resource(GameState::default());
 }
 
 fn destory_resource(mut cmds: Commands) {

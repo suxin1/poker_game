@@ -24,7 +24,7 @@ pub struct InteractionDisabled(pub bool);
 
 /// Palette for widget interactions. Add this to an entity that supports
 /// [`Interaction`]s, such as a button, to change its [`BackgroundColor`] based
-/// on the current interaction state.
+/// on the current interaction shared.
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
 #[require(Interaction)]

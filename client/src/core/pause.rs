@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
-    // Set up the `Pause` state.
+    // Set up the `Pause` shared.
     app.init_state::<Pause>();
     app.configure_sets(Update, PausableSystems.run_if(in_state(Pause(false))));
 }

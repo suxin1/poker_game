@@ -1,7 +1,7 @@
 use crate::game::assets::CardAssets;
 use crate::game::widget::{card_view, get_card_img, hands_view};
 use crate::screens::ScreenState;
-use state::cards::{Card, CardValue, Suit};
+use shared::cards::{Card, CardValue, Suit};
 
 use crate::prelude::widget::button;
 use crate::prelude::*;

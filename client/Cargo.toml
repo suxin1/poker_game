@@ -32,7 +32,7 @@ bevy = { version = "0.16", default-features = false, features = [
 ] }
 rand = "0.9"
 
-state = {path = "../state", features = ["bevy"]}
+shared = {path = "../shared", features = ["bevy"]}
 
 # Assets
 bevy_asset_loader = { version = "0.23", features = ["2d", "progress_tracking"] }

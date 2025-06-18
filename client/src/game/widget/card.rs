@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use bevy::ecs::system::IntoObserverSystem;
-use state::cards::{Card, CardValue, Suit};
+use shared::cards::{Card, CardValue, Suit};
 use crate::game::assets::CardAssets;
 
 const CARD_WIDTH:Val = Vw(5.5);

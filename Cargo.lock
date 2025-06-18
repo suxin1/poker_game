@@ -1119,6 +1119,8 @@ dependencies = [
 [[package]]
 name = "bevy_picking"
 version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ed04757938655ed8094ea1efb533f99063a8b22abffc22010c694d291522850"
 dependencies = [
  "bevy_app",
  "bevy_asset",
@@ -1126,7 +1128,6 @@ dependencies = [
  "bevy_ecs",
  "bevy_input",
  "bevy_math",
- "bevy_mesh",
  "bevy_platform",
  "bevy_reflect",
  "bevy_render",
@@ -1134,7 +1135,6 @@ dependencies = [
  "bevy_transform",
  "bevy_utils",
  "bevy_window",
- "crossbeam-channel",
  "tracing",
  "uuid",
 ]
@@ -1892,7 +1892,7 @@ dependencies = [
  "rand 0.9.1",
  "renet2_netcode",
  "serde",
- "state",
+ "shared",
  "tiny_bail",
  "tracing",
  "url",
@@ -5128,7 +5128,7 @@ dependencies = [
  "renet2_netcode",
  "serde",
  "serde_json",
- "state",
+ "shared",
  "tokio",
  "url",
 ]
@@ -5162,6 +5162,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+ "bevy_ecs",
+ "itertools 0.14.0",
+ "log",
+ "rand 0.9.1",
+ "serde",
+ "strum 0.27.1",
+ "strum_macros 0.27.1",
+ "tiny_bail",
 ]
 
 [[package]]
@@ -5295,20 +5309,6 @@ name = "stackfuture"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6eae92052b72ef70dafa16eddbabffc77e5ca3574be2f7bc1127b36f0a7ad7f2"
-
-[[package]]
-name = "state"
-version = "0.1.0"
-dependencies = [
- "bevy_ecs",
- "itertools 0.14.0",
- "log",
- "rand 0.9.1",
- "serde",
- "strum 0.27.1",
- "strum_macros 0.27.1",
- "tiny_bail",
-]
 
 [[package]]
 name = "static_assertions"

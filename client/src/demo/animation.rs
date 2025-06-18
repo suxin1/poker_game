@@ -34,7 +34,7 @@ pub(super) fn plugin(app: &mut App) {
     );
 }
 
-/// Update the sprite direction and animation state (idling/walking).
+/// Update the sprite direction and animation shared (idling/walking).
 fn update_animation_movement(
     mut player_query: Query<(&MovementController, &mut Sprite, &mut PlayerAnimation)>,
 ) {
@@ -92,7 +92,7 @@ fn trigger_step_sound_effect(
     }
 }
 
-/// Component that tracks player's animation state.
+/// Component that tracks player's animation shared.
 /// It is tightly bound to the texture atlas we use.
 #[derive(Component, Reflect)]
 #[reflect(Component)]
@@ -151,7 +151,7 @@ impl PlayerAnimation {
             };
     }
 
-    /// Update animation state if it changes.
+    /// Update animation shared if it changes.
     pub fn update_state(&mut self, state: PlayerAnimationState) {
         if self.state != state {
             match state {

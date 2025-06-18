@@ -1,5 +1,7 @@
 mod http_server;
-mod renet_server;
+mod game_server;
+mod game;
+mod utils;
 
 use std::env;
 use std::{
@@ -20,9 +22,8 @@ use renet2_netcode::{
     ServerSocket
 };
 use serde::{Deserialize, Serialize};
-use state::state::GameState;
+use crate::game_server::RenetGameServer;
 use crate::http_server::run_http_server;
-use crate::renet_server::run_renet_server;
 
 // used to make sure players use the most recent version of the client.
 pub const PROTOCOL_ID: u64 = 7;
@@ -116,8 +117,10 @@ fn main() {
         ]),
     )
     .unwrap();
-
+    let mut renet_game_server = RenetGameServer::with_transport(transport);
     runtime.spawn(async move { run_http_server(http_addr, client_connection_info).await});
 
-    run_renet_server(transport);
+    loop {
+        renet_game_server.update();
+    }
 }
