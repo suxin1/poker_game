@@ -40,7 +40,7 @@ impl DynamicFontSize {
         Self {
             size,
             step: 0.0,
-            minimum: 0.0,
+            minimum: 8.0,
         }
     }
 

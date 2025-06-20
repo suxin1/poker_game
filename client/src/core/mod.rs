@@ -79,6 +79,8 @@ pub enum AppSystems {
     TickTimers,
     /// Record player and AI input.
     RecordInput,
+    /// Update Game State
+    UpdateState,
     /// Step game logic.
     Update,
     /// Handle events emitted this frame.
@@ -96,6 +98,7 @@ impl Configure for AppSystems {
             (
                 Self::SyncEarly,
                 Self::TickTimers,
+                Self::UpdateState,
                 Self::Update,
                 Self::RecordInput,
                 Self::HandleEvents,

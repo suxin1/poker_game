@@ -2,8 +2,18 @@
 
 use bevy::input::touch::Touch;
 use bevy::prelude::*;
+use bevy_renet2::prelude::RenetClient;
+use bincode::serde::encode_to_vec;
+use renet2_netcode::NetcodeClientTransport;
+use std::ops::Deref;
 
+use shared::Player;
+use shared::event::GameEvent;
+
+#[cfg(target_family = "wasm")]
 use crate::theme::interaction::InteractionDisabled;
+
+use crate::game::bincode::BincodeConfig;
 use crate::{asset_tracking::ResourceHandles, menus::Menu, screens::ScreenState, theme::widget};
 
 pub(super) fn plugin(app: &mut App) {
@@ -35,19 +45,40 @@ fn spawn_main_menu(mut commands: Commands) {
 
 fn enter_loading_or_gameplay_screen(
     _: Trigger<Pointer<Click>>,
-    // _: Trigger<Pointer<TouchInput>>,
     resource_handles: Res<ResourceHandles>,
     mut next_screen: ResMut<NextState<ScreenState>>,
+    mut client: ResMut<RenetClient>,
+    player: Res<Player>,
+    bincode_config: Res<BincodeConfig>,
 ) {
     info!("Entering loading or gameplay screen.");
     if resource_handles.is_all_done() {
-        next_screen.set(ScreenState::Gameplay);
+        // next_screen.set(ScreenState::Gameplay);
+        let event = GameEvent::JoinRoom {
+            player: player.clone(),
+            room_id: 0,
+        };
+        client.send_message(
+            0,
+            encode_to_vec(&event, bincode_config.0).unwrap(),
+        );
     } else {
         next_screen.set(ScreenState::Loading);
     }
 }
 
-fn open_settings_menu(_: Trigger<Pointer<Click>>, mut next_menu: ResMut<NextState<Menu>>) {
+fn open_settings_menu(
+    _: Trigger<Pointer<Click>>,
+    mut next_menu: ResMut<NextState<Menu>>,
+    mut client: ResMut<RenetClient>,
+    bincode_config: Res<BincodeConfig>,
+) {
+    #[cfg(feature = "dev")]
+    {
+        info!("发送重置游戏房间事件到服务器");
+        let event = GameEvent::RoomReset { room_id: 0 };
+        client.send_message(0, encode_to_vec(&event, bincode_config.0).unwrap());
+    }
     next_menu.set(Menu::Settings);
 }
 

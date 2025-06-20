@@ -33,12 +33,12 @@ pub fn ui_root(name: impl Into<Cow<'static, str>>) -> impl Bundle {
 }
 
 /// A app wide base text widget, all text should use this.
-fn text_base(text: impl AsRef<str>, font_size: Val, text_color: ThemeColor) -> impl Bundle {
+pub fn text_base(text: impl AsRef<str>, font_size: Val, text_color: Color) -> impl Bundle {
     let text = text.as_ref();
     (
         Name::new(format!("Label(\"{text}\")")),
         Text::new(text),
-        TextColor(THEME_COLOR_LIST[text_color]),
+        TextColor(text_color),
         TextFont {
             font: HAN_FONT_HANDLE,
             ..default()
@@ -59,7 +59,7 @@ pub fn header(text: impl Into<String>) -> impl Bundle {
 
 /// A simple text label.
 pub fn label(text: impl Into<String>) -> impl Bundle {
-    text_base(text.into(), Vw(3.5), ThemeColor::BodyText)
+    text_base(text.into(), Vw(3.5), ThemeColor::BODY_TEXT_LIGHT)
 }
 
 /// A large rounded button with text and an action defined as an [`Observer`].
@@ -130,13 +130,13 @@ where
         button_bundle,
         BackgroundColor(BUTTON_BACKGROUND),
         InteractionPalette {
-            none: BackgroundColor(THEME_COLOR_LIST[ThemeColor::Primary]),
-            hovered: BackgroundColor(THEME_COLOR_LIST[ThemeColor::PrimaryHovered]),
-            pressed: BackgroundColor(THEME_COLOR_LIST[ThemeColor::PrimaryPressed]),
-            disabled: BackgroundColor(THEME_COLOR_LIST[ThemeColor::PrimaryDisabled]),
+            none: BackgroundColor(ThemeColor::PRIMARY),
+            hovered: BackgroundColor(ThemeColor::PRIMARY_HOVERED),
+            pressed: BackgroundColor(ThemeColor::PRIMARY_PRESSED),
+            disabled: BackgroundColor(ThemeColor::PRIMARY_DISABLED),
         },
         children![(
-            text_base(text, font_size, ThemeColor::PrimaryText),
+            text_base(text, font_size, ThemeColor::PRIMARY_TEXT),
             // Don't bubble picking events from the text up to the button.
             Pickable::IGNORE,
         )],

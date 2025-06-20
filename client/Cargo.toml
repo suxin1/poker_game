@@ -49,11 +49,13 @@ serde = "1"
 tiny_bail = "0.4"
 variadics_please = "1.1"
 anyhow = "1.0.98"
+fake = {version = "3.1", optional = true}
+strum_macros = "0.27"
 
 # Network
 bevy_renet2 = { version = "0.9" }
 renet2_netcode = { version = "0.9", default-features = false, features = [
-    "serde", "wt_client_transport", "ws_client_transport"
+    "serde", "wt_client_transport", "ws_client_transport", "native_transport"
 ] }
 bincode = { version = "2.0.1", features = ["serde"] }
 
@@ -85,9 +87,10 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 #[patch.crates-io]
 #getrandom = { git = "https://github.com/benfrankel/getrandom" }
 
+
 [features]
 # Default to a native dev build.
-default = ["dev"]
+default = ["dev", "dev_native"]
 web = [
     "bevy/dynamic_linking",
     "bevy/bevy_dev_tools",
@@ -102,7 +105,9 @@ dev = [
     "bevy/bevy_ui_debug",
     # Improve error messages coming from Bevy
     "bevy/track_location",
+    "fake"
 ]
+
 dev_native = [
     "dev",
     # Enable asset hot reloading for native dev builds.

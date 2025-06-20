@@ -16,6 +16,9 @@ mod utils;
 mod network;
 mod game;
 
+#[cfg(feature = "dev")]
+mod fake_player;
+
 use crate::prelude::*;
 fn main() -> AppExit {
     App::new().add_plugins(AppPlugin).run()
@@ -30,10 +33,12 @@ impl Plugin for AppPlugin {
 
         // Add other plugins.
         app.add_plugins((
+            #[cfg(feature = "dev")]
+            fake_player::plugin,
+
             asset_tracking::plugin,
             demo::plugin,
             network::plugin,
-            #[cfg(feature = "dev")]
             animation::plugin,
             menus::plugin,
             screens::plugin,

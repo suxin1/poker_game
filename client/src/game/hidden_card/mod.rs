@@ -1,8 +1,10 @@
 use crate::prelude::*;
+pub mod level;
 mod state;
-pub mod game;
+
+mod game_event;
+mod player;
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins(state::plugin);
+    app.add_plugins((state::plugin, player::plugin));
 }
-

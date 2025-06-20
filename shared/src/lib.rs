@@ -9,14 +9,15 @@ pub(crate) type RoomId = u64;
 
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "bevy", derive(bevy_ecs::prelude::Resource))]
 pub struct Player {
     pub id: ClientId,
     pub name: String,
-    pub avatar: String,
+    pub avatar: Option<String>,
 }
 
 pub trait Reducer<E, Er> {
-    fn reducer(&mut self, event: &E);
+    fn reduce(&mut self, event: &E);
 
     fn dispatch(&mut self, event: &E) -> Result<(), Er>;
 

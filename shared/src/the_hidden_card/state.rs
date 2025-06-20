@@ -4,8 +4,8 @@ use std::time::Instant;
 use strum::IntoEnumIterator;
 
 use crate::cards::{Card, CardValue, Deck, Suit};
-use crate::Player;
-
+use crate::{ClientId, Player};
+use crate::event::GameEvent;
 pub use crate::the_hidden_card::prelude::*;
 
 type PlayerSetIndex = usize;
@@ -31,6 +31,12 @@ impl Default for PlayerSeat {
             ready: false,
             score: 0,
         }
+    }
+}
+
+impl PlayerSeat {
+    pub fn get_player(&self) -> Option<&Player> {
+        self.player.as_ref()
     }
 }
 
@@ -127,6 +133,8 @@ pub struct GameState {
     table_score_counter: i32,
 
     finished_order: VecDeque<(PlayerSetIndex, Instant)>,
+
+    history: Vec<GameEvent>,
 }
 
 impl Default for GameState {
@@ -150,13 +158,23 @@ impl Default for GameState {
             is_hidden_card_shown: false,
             table_score_counter: 0,
             finished_order: VecDeque::new(),
+
+            history: Vec::new(),
         }
     }
 }
 
 impl GameState {
-    fn get_sets(&self) -> &[PlayerSeat; 4] {
+    pub fn get_seats(&self) -> &[PlayerSeat; 4] {
         &self.seats
+    }
+
+    pub fn add_history(&mut self, event: GameEvent) {
+        self.history.push(event);
+    }
+
+    pub fn get_history(&self) -> &[GameEvent] {
+        &self.history
     }
 
     fn get_active_set(&self) -> Option<PlayerSeat> {
@@ -170,7 +188,19 @@ impl GameState {
     pub fn has_empty_seat(&self) -> bool {
         self.seats.iter().any(|set| set.player.is_none())
     }
-    
+
+    pub fn seat_is_empty(&self, index: usize) -> bool {
+        self.seats[index].player.is_none()
+    }
+
+    pub fn get_player_seat_index(&self, player: Player) -> Option<usize> {
+        self.seats.iter().position(|set| set.player == Some(player.clone()))
+    }
+
+    pub fn get_player_seat_index_by_id(&self, player_id: ClientId) -> Option<usize> {
+        self.seats.iter().position(|set| set.player.as_ref().map(|p| p.id) == Some(player_id))
+    }
+
     pub fn get_empty_seat_index(&self) -> Option<usize> {
         for (index, set) in self.seats.iter().enumerate() {
             if set.player.is_none() {

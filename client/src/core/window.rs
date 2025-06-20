@@ -1,4 +1,4 @@
-use bevy::window::ExitCondition;
+use bevy::window::{ExitCondition, WindowResolution};
 use bevy::window::PresentMode;
 use bevy::window::PrimaryWindow;
 use bevy::window::WindowMode;
@@ -11,6 +11,8 @@ pub(super) fn plugin(app: &mut App) {
             name: Some("bevy_app".to_string()),
             fit_canvas_to_parent: true,
             visible: true,
+            position: WindowPosition::At(IVec2::new(0, 0)),
+            resolution: WindowResolution::new(844., 390.),
             ..default()
         }),
         exit_condition: ExitCondition::OnPrimaryClosed,

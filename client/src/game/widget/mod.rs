@@ -1,4 +1,10 @@
 mod card;
-mod set;
+mod seat;
+mod text;
 
-pub use card::*;
+
+pub mod prelude {
+    pub use super::card::*;
+    pub use super::text::*;
+    pub use super::seat::*;
+}

@@ -28,6 +28,7 @@ pub use iyes_progress::prelude::*;
 pub use rand::prelude::*;
 pub use serde::Deserialize;
 pub use serde::Serialize;
+pub use bincode::serde::encode_to_vec;
 pub use tiny_bail::prelude::*;
 
 pub use crate::utils::prelude::*;
@@ -35,3 +36,4 @@ pub use crate::core::AppSystems;
 pub use crate::core::pause::Pause;
 pub use crate::core::pause::PausableSystems;
 pub use crate::theme::prelude::*;
+pub use crate::game::bincode::*;

@@ -4,7 +4,7 @@ use crate::the_hidden_card::error::GameError;
 use crate::the_hidden_card::prelude::*;
 
 impl Reducer<GameEvent, GameError> for  GameState {
-    fn reducer(&mut self, event: &GameEvent) {
+    fn reduce(&mut self, event: &GameEvent) {
         use GameEvent::*;
         match event {
             AssignSeats { player, seat_index} => {
@@ -12,6 +12,7 @@ impl Reducer<GameEvent, GameError> for  GameState {
             }
             _ => {}
         }
+        self.add_history(event.clone());
     }
 
     fn dispatch(&mut self, event: &GameEvent) -> Result<(), GameError> {
@@ -22,6 +23,15 @@ impl Reducer<GameEvent, GameError> for  GameState {
     }
 
     fn validate(&self, event: &GameEvent) -> bool {
-        todo!()
+        // todo!()
+        use GameEvent::*;
+        match event {
+            AssignSeats { player, seat_index} => {
+                self.seat_is_empty(seat_index.clone())
+            }
+            _ => {
+                todo!()
+            }
+        }
     }
 }

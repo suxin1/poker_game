@@ -5,7 +5,7 @@ mod loading;
 mod splash;
 mod title;
 
-use bevy::prelude::*;
+use crate::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
     app.init_state::<ScreenState>();
@@ -27,4 +27,31 @@ pub enum ScreenState {
     Title,
     Loading,
     Gameplay,
+}
+
+#[derive(Resource, Reflect)]
+#[reflect(Resource)]
+pub struct ScreenRoot {
+    pub ui: Entity,
+}
+
+impl Configure for ScreenRoot {
+    fn configure(app: &mut App) {
+        app.register_type::<Self>();
+        app.init_resource::<Self>();
+    }
+}
+
+impl FromWorld for ScreenRoot {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            ui: world
+                .spawn((
+                    Name::new("ScreenUi"),
+                    Node::DEFAULT.full_size(),
+                    Pickable::IGNORE,
+                ))
+                .id(),
+        }
+    }
 }

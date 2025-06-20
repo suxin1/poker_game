@@ -1,11 +1,13 @@
+use crate::game_server::{RenetGameServer, RenetServerWithConfig};
+use bincode::config::Configuration;
 use renet2::{ClientId, RenetServer};
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, RwLock};
-
-use shared::{Player, Reducer};
 use shared::error::RoomServiceError;
 use shared::event::GameEvent;
 use shared::the_hidden_card::state::GameState;
+use shared::{Player, Reducer};
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex, RwLock};
+use log::info;
 
 type RoomId = u64;
 
@@ -17,19 +19,52 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn process_event(&mut self, event: GameEvent, server: &mut RenetServer) {
+    pub fn process_event(
+        &mut self,
+        client_id: ClientId,
+        event: GameEvent,
+        server: &mut RenetServerWithConfig,
+    ) {
         if !self.game_state.validate(&event) {
+            info!("Invalid event: {:?}", event);
             return;
         }
-        self.game_state.reducer(&event);
-        // server.broadcast_message()
+        self.game_state.reduce(&event);
         for client_id in self.players.iter() {
-            server.send_message(
-                client_id.clone(),
-                0,
-                bincode::serde::encode_to_vec(&event, bincode::config::standard()).unwrap(),
-            );
+            server.send_event_next(client_id.clone(), event.clone());
         }
+    }
+
+    pub fn flush_hisotry(&mut self, client_id: ClientId, server: &mut RenetServerWithConfig) {
+        let history = self.game_state.get_history();
+        history.iter().for_each(|event| {
+            server.send_event_next(client_id.clone(), event.clone());
+        });
+    }
+
+    pub fn join(&mut self, player: Player, server: &mut RenetServerWithConfig) -> Result<(), RoomServiceError> {
+        if !self.game_state.has_empty_seat() {
+            return Err(RoomServiceError::RoomFull);
+        }
+
+        let seat_index = self.game_state.get_empty_seat_index().unwrap();
+
+        self.add_client(player.id);
+
+        // 发送加入房间成功事件
+        server.send_event(player.id, GameEvent::JoinRoomOk { room_id: self.id});
+        // 加入房间成功，下一帧将历史事件发送给客户端
+        self.flush_hisotry(player.id.clone(), server);
+
+        // 下面的所有事件会同步给每一个客户端，每个客户端发送的事件不会直接应用到本地状态，
+        // 都会通过服务器验证后才会发送给客户端并应用到本地状态。
+        self.process_event(
+            player.id.clone(),
+            GameEvent::AssignSeats { player: player.clone(), seat_index },
+            server,
+        );
+
+        Ok(())
     }
 
     pub fn add_client(&mut self, client_id: ClientId) {
@@ -41,19 +76,22 @@ impl Room {
     }
 }
 
-#[derive(Default)]
 pub struct Rooms {
     rooms: HashMap<RoomId, Arc<RwLock<Room>>>,
 
     client_room_map: HashMap<ClientId, RoomId>,
 
     next_room_id: RoomId,
+    // TODO 销毁房间
 }
 
 impl Rooms {
-
     pub fn with_test_room() -> Self {
-        let mut rooms = Self::default();
+        let mut rooms = Self {
+            rooms: HashMap::new(),
+            client_room_map: HashMap::new(),
+            next_room_id: 0,
+        };
         let room_id = rooms.next_room_id;
         let room = Arc::new(RwLock::new(Room {
             id: room_id,
@@ -68,7 +106,11 @@ impl Rooms {
 
         rooms
     }
-    pub fn create_room(&mut self, player: Player, server: &mut RenetServer) -> Result<(), RoomServiceError> {
+    pub fn create_room(
+        &mut self,
+        player: Player,
+        server: &mut RenetServerWithConfig,
+    ) -> Result<(), RoomServiceError> {
         let room_id = self.next_room_id;
         self.next_room_id += 1;
 
@@ -90,7 +132,7 @@ impl Rooms {
         &mut self,
         player: Player,
         room_id: RoomId,
-        server: &mut RenetServer,
+        server: &mut RenetServerWithConfig,
     ) -> Result<(), RoomServiceError> {
         if self.client_room_map.contains_key(&player.id) {
             return Err(RoomServiceError::AlreadyInRoom);
@@ -103,30 +145,49 @@ impl Rooms {
 
         let mut room = room.write().unwrap();
 
-        if !room.game_state.has_empty_seat() {
-            return Err(RoomServiceError::RoomFull);
-        }
+        room.join(player, server)
+    }
 
-        let seat_index = room.game_state.get_empty_seat_index().unwrap();
-        room.process_event(GameEvent::AssignSeats { player, seat_index }, server);
+    fn reset_room(&mut self, room_id: RoomId) -> Result<(), RoomServiceError> {
+        let room = self
+            .rooms
+            .get(&room_id)
+            .ok_or(RoomServiceError::RoomNotFound)?;
 
+        let mut room = room.write().unwrap();
+
+        room.game_state = GameState::default();
+        info!("Reset room: {}", room_id);
         Ok(())
     }
 
+    /// 尝试处理事件，如果事件是创建房间或者加入房间，则处理，否则尝试获取房间并将事件交给房间处理
     pub fn process_event(
         &mut self,
         client_id: ClientId,
         event: GameEvent,
-        server: &mut RenetServer,
+        server: &mut RenetServerWithConfig,
     ) -> Result<(), RoomServiceError> {
         match event {
-            GameEvent::CreateRoom { player } => {
-                self.create_room(player, server)
+            GameEvent::CreateRoom { player } => self.create_room(player, server),
+            GameEvent::JoinRoom { player, room_id } => self.join_room(player, room_id, server),
+            GameEvent::RoomReset {room_id} => self.reset_room(room_id),
+            _ => {
+                let room_id = self
+                    .client_room_map
+                    .get(&client_id)
+                    .ok_or(RoomServiceError::ClientNotInRoom)?;
+
+                let room = self
+                    .rooms
+                    .get(room_id)
+                    .ok_or(RoomServiceError::RoomNotFound)?;
+
+                room.write()
+                    .unwrap()
+                    .process_event(client_id, event, server);
+                Ok(())
             },
-            GameEvent::JoinRoom { player, room_id } => {
-                self.join_room(player, room_id, server)
-            },
-            _ => Ok(()),
         }
     }
 }

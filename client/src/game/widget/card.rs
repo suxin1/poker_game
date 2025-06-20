@@ -31,7 +31,7 @@ where
     )
 }
 
-pub fn hands_view () -> impl Bundle {
+pub fn hands_view (children: impl Bundle) -> impl Bundle {
     (
         Node {
             width: Val::Vw(80.),
@@ -40,6 +40,7 @@ pub fn hands_view () -> impl Bundle {
             bottom: Val::Px(16.),
             ..default()
         },
+        children,
     )
 }
 

@@ -1,38 +1,34 @@
+use bevy::prelude::*;
 use std::net::{SocketAddr, UdpSocket};
 use std::time::SystemTime;
-use bevy::prelude::*;
 
-use bevy_http_client::HttpClient;
+use crate::network::PROTOCOL_ID;
+use crate::network::init::ClientConnectionInfo;
+use crate::screens::ScreenState;
+
 use bevy_http_client::prelude::{HttpTypedRequestTrait, TypedRequest, TypedResponse};
 use bevy_renet2::netcode::{ClientAuthentication, NETCODE_USER_DATA_BYTES};
 use bevy_renet2::prelude::{ConnectionConfig, DefaultChannel, RenetClient};
-use renet2_netcode::{NetcodeClientTransport, ServerCertHash, WebServerDestination};
+use renet2_netcode::{NativeSocket, NetcodeClientTransport, ServerCertHash, WebServerDestination};
+
 use serde::{Deserialize, Serialize};
-use crate::screens::ScreenState;
-
-pub(crate) fn plugin(app: &mut App) {
-
-        let (client, transport) = create_renet_client(&"suxin".to_string()).unwrap();
-        app.insert_resource(client);
-        app.insert_resource(transport);
-
-}
-
-const PROTOCOL_ID: u64 = 7;
-
-const SERVER_ADDR: &str = "127.0.0.1:8080";
+use shared::Player;
 
 // Create a RenetClient that already connected to a server.
 // Returns an Err if connection fails
-pub(super) fn create_renet_client(username: &String) -> anyhow::Result<(RenetClient, NetcodeClientTransport)> {
-    let server_addr: SocketAddr = SERVER_ADDR.parse()?;
-
-    let socket = bevy_renet2::netcode::NativeSocket::new(UdpSocket::bind("127.0.0.1:0")?).unwrap();
+pub(super) fn create_renet_client(
+    user: &Player,
+    client_connection_info: ClientConnectionInfo,
+) -> anyhow::Result<(RenetClient, NetcodeClientTransport)> {
+    let server_addr: SocketAddr = client_connection_info.native_addr.parse()?;
+    let socket = NativeSocket::new(UdpSocket::bind("127.0.0.1:0")?).unwrap();
 
     let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-    let client_id = current_time.as_millis() as u64;
 
     info!("Try connect");
+    let username = user.name.clone();
+    let client_id = user.id.clone();
+
     let mut user_data = [0u8; NETCODE_USER_DATA_BYTES];
     if username.len() > NETCODE_USER_DATA_BYTES - 8 {
         panic!("Username is too long");
