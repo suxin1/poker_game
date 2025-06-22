@@ -10,7 +10,12 @@ use crate::game::widget::prelude::*;
 #[derive(Component)]
 pub struct LevelUiRoot;
 
-pub fn spawn_level(mut commands: Commands, card_assets: Res<CardAssets>) {
+pub fn spawn_level(
+    mut commands: Commands,
+    card_assets: Res<CardAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
     commands.spawn((
         Name::new("Game UI root"),
         Node::COLUMN_CENTER.full_size(),
@@ -32,8 +37,6 @@ pub fn spawn_level(mut commands: Commands, card_assets: Res<CardAssets>) {
             seats_view()
         ],
     ));
-
-    // commands.spawn(seats_view());
 }
 
 fn card_select(_: Trigger<Pointer<Click>>) {

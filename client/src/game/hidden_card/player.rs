@@ -60,12 +60,10 @@ fn handle_seat_update_event(
 
 fn update_player_seat(
     _: Trigger<RunSeatUpdate>,
-    // mut cmds: Commands,
     mut seats_query: Query<(Entity, &Children, &SeatPosition)>,
     mut player_name_text_query: Query<&mut Text, With<PlayerNameText>>,
     mut player_avatar: Query<&mut BackgroundColor, With<PlayerAvatarBox>>,
     state: Res<GameState>,
-    // local_player: Res<Player>,
     seat_position_map: Res<SeatPositionMap>,
 ) {
     let seats_data = state.get_seats();
@@ -81,7 +79,6 @@ fn update_player_seat(
             if let Ok(mut background_color) = player_avatar.get_mut(child) {
                 background_color.0 = SEAT_COLOR[index.clone()];
             };
-            info!("Update Player set from state: {}", player_data.name.clone());
         }
     }
 }
@@ -147,6 +144,12 @@ const SEAT_COLOR: [Color; 5] = [
     Color::srgba(0.6, 0.4, 0.1, 1.), // 橘
     Color::srgba(0.6, 0.6, 0.6, 1.), // 橘
 ];
+
+struct ColorPlatte;
+
+impl ColorPlatte {
+    const BLUE: Color = Color::srgba(0.1, 0.1, 0.5, 1.);
+}
 
 #[derive(Component, PartialEq, Eq, Hash, Display)]
 pub enum SeatPosition {

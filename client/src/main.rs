@@ -51,6 +51,11 @@ impl Plugin for AppPlugin {
     }
 }
 
+
+#[derive(Component)]
+#[require(Camera2d)]
+pub struct MainCamera;
+
 fn spawn_camera(mut commands: Commands) {
-    commands.spawn((Name::new("Camera"), Camera2d));
+    commands.spawn((Name::new("Camera"), MainCamera));
 }

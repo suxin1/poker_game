@@ -32,6 +32,36 @@ pub fn ui_root(name: impl Into<Cow<'static, str>>) -> impl Bundle {
     )
 }
 
+pub fn overlay(z: i32) -> impl Bundle {
+    (
+        Name::new("Overlay"),
+        Node::DEFAULT.full_size().abs(),
+        Pickable::IGNORE,
+        GlobalZIndex(z),
+    )
+}
+
+pub fn blocking_overlay(z: i32) -> impl Bundle {
+    (
+        Name::new("BlockingOverlay"),
+        Node::DEFAULT.full_size().abs(),
+        FocusPolicy::Block,
+        GlobalZIndex(z),
+    )
+}
+
+pub fn body(children: impl Bundle) -> impl Bundle {
+    (
+        Name::new("Body"),
+        Node {
+            display: Display::Block,
+            padding: UiRect::all(Vw(3.5)),
+            ..Node::DEFAULT.full_size()
+        },
+        children,
+    )
+}
+
 /// A app wide base text widget, all text should use this.
 pub fn text_base(text: impl AsRef<str>, font_size: Val, text_color: Color) -> impl Bundle {
     let text = text.as_ref();
@@ -82,6 +112,30 @@ where
                 ..default()
             },
             BorderRadius::MAX,
+        ),
+    )
+}
+
+pub fn button_mid<E, B, M, I>(text: impl Into<String>, action: I) -> impl Bundle
+where
+    E: Event,
+    B: Bundle,
+    I: IntoObserverSystem<E, B, M>,
+{
+    button_base(
+        text,
+        Vw(2.0),
+        action,
+        (
+            Node {
+                // width: Vw(30.0),
+                height: Vw(4.),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                padding: UiRect::horizontal(Vw(2.)),
+                ..default()
+            },
+            BorderRadius::all(Vw(1.)),
         ),
     )
 }

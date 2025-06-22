@@ -19,6 +19,9 @@ pub struct PlayerNameText;
 #[derive(Component)]
 pub struct PlayerAvatarBox;
 
+#[derive(Component)]
+pub struct ReadyMarker;
+
 pub fn seat_view<E, B, M, I>(position: AbsolutePosition, marker: impl Bundle, color: Color, action: I) -> impl Bundle
 where
     E: Event,
@@ -57,6 +60,9 @@ where
             (
                 PlayerNameText,
                 body_text("何书鑫"),
+            ),
+            (
+                ReadyMarker
             )
         ],
     )

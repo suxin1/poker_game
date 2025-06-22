@@ -1,11 +1,9 @@
 //! The main menu (seen on the title screen).
 
-use bevy::input::touch::Touch;
-use bevy::prelude::*;
 use bevy_renet2::prelude::RenetClient;
 use bincode::serde::encode_to_vec;
-use renet2_netcode::NetcodeClientTransport;
-use std::ops::Deref;
+
+use crate::prelude::*;
 
 use shared::Player;
 use shared::event::GameEvent;
@@ -14,6 +12,7 @@ use shared::event::GameEvent;
 use crate::theme::interaction::InteractionDisabled;
 
 use crate::game::bincode::BincodeConfig;
+use crate::prelude::{ClosePopupEvent, OpenPopupEvent};
 use crate::{asset_tracking::ResourceHandles, menus::Menu, screens::ScreenState, theme::widget};
 
 pub(super) fn plugin(app: &mut App) {
@@ -29,6 +28,7 @@ fn spawn_main_menu(mut commands: Commands) {
         children![
             widget::button("开始", enter_loading_or_gameplay_screen),
             widget::button("设置", open_settings_menu),
+            widget::button("打开弹窗", open_popup),
             (
                 widget::button("退出", exit_app),
                 #[cfg(target_family = "wasm")]
@@ -58,10 +58,7 @@ fn enter_loading_or_gameplay_screen(
             player: player.clone(),
             room_id: 0,
         };
-        client.send_message(
-            0,
-            encode_to_vec(&event, bincode_config.0).unwrap(),
-        );
+        client.send_message(0, encode_to_vec(&event, bincode_config.0).unwrap());
     } else {
         next_screen.set(ScreenState::Loading);
     }
@@ -80,6 +77,47 @@ fn open_settings_menu(
         client.send_message(0, encode_to_vec(&event, bincode_config.0).unwrap());
     }
     next_menu.set(Menu::Settings);
+}
+
+fn open_popup(_: Trigger<Pointer<Click>>, mut cmds: Commands) {
+    cmds.trigger(OpenPopupEvent {
+        content_builder: Box::new(|parent| {
+            parent.spawn((
+                Node {
+                    width: Vw(50.),
+                    height: Vw(30.),
+                    padding: UiRect::all(Vw(3.)),
+                    flex_direction: FlexDirection::Column,
+                    justify_content: JustifyContent::SpaceEvenly,
+                    ..default()
+                },
+                BackgroundColor(Color::WHITE),
+                BorderRadius::all(Vw(5.0)),
+                children![
+                    (
+                        Node {
+                            width: Percent(100.),
+                            flex_grow: 1.,
+                            ..default()
+                        },
+                    ),
+                    (
+                        Node {
+                            width: Percent(100.),
+                            // height: Percent(20.),
+                            justify_content: JustifyContent::End,
+                            ..default()
+                        },
+                        children![widget::button_mid("关闭", close_popup)],
+                    )
+                ],
+            ));
+        }),
+    });
+}
+
+fn close_popup(_: Trigger<Pointer<Click>>, mut cmds: Commands) {
+    cmds.trigger(ClosePopupEvent);
 }
 
 // #[cfg(not(target_family = "wasm"))]
