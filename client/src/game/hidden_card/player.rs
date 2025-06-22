@@ -10,6 +10,7 @@ use url::Position;
 
 use strum_macros::Display;
 use crate::game::hidden_card::game_event::LocalGameEvent;
+use crate::theme::palette::ThemeColor;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -53,6 +54,11 @@ fn handle_seat_update_event(
                     // event_writer.write(LocalGameEvent::RunSeatUpdate);
                 }
             },
+            GameEvent::Ready {client_id} => {
+                if *is_seat_position_map_available {
+                    cmds.trigger(RunSeatUpdate);
+                }
+            }
             _ => {},
         }
     }
@@ -60,24 +66,37 @@ fn handle_seat_update_event(
 
 fn update_player_seat(
     _: Trigger<RunSeatUpdate>,
-    mut seats_query: Query<(Entity, &Children, &SeatPosition)>,
+    mut seats_query: Query<(Entity, &Children, &SeatPosition), With<SeatPosition>>,
+    mut player_avatar: Query<Entity, With<PlayerAvatarBox>>,
     mut player_name_text_query: Query<&mut Text, With<PlayerNameText>>,
-    mut player_avatar: Query<&mut BackgroundColor, With<PlayerAvatarBox>>,
+    mut background_query: Query<&mut BackgroundColor>,
     state: Res<GameState>,
     seat_position_map: Res<SeatPositionMap>,
 ) {
+    info!("Update seat view");
     let seats_data = state.get_seats();
     for (entity, children, seat_position) in seats_query.iter_mut() {
         let index = c!(seat_position_map.0.get(seat_position));
-        let data = &seats_data[index.clone()];
-        let player_data = c!(data.get_player());
+        let seat = &seats_data[index.clone()];
+        let player_data = c!(seat.get_player());
+
+        if let Ok(mut background_colors) = background_query.get_mut(entity) {
+            background_colors.0 = if seat.ready {
+                ThemeColor::INFO
+            } else {
+                ThemeColor::WARNING
+            };
+        }
+
 
         for child in children.iter() {
             if let Ok(mut text) = player_name_text_query.get_mut(child) {
                 **text = player_data.name.clone();
             };
-            if let Ok(mut background_color) = player_avatar.get_mut(child) {
-                background_color.0 = SEAT_COLOR[index.clone()];
+            if let Ok(entity) = player_avatar.get_mut(child) {
+                if let Ok(mut background_color) = background_query.get_mut(entity) {
+                    background_color.0 = SEAT_COLOR[index.clone()];
+                }
             };
         }
     }
@@ -149,6 +168,7 @@ struct ColorPlatte;
 
 impl ColorPlatte {
     const BLUE: Color = Color::srgba(0.1, 0.1, 0.5, 1.);
+    // const READY_COLOR: Color = Color::srgba()
 }
 
 #[derive(Component, PartialEq, Eq, Hash, Display)]

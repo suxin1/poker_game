@@ -6,7 +6,6 @@ pub mod window;
 
 #[cfg(feature = "dev")]
 pub mod dev_tools;
-pub mod popup;
 
 use crate::prelude::*;
 use bevy::audio::AudioPlugin;
@@ -25,8 +24,8 @@ pub(super) fn plugin(app: &mut App) {
     );
 
     app.add_plugins((
+        PopupPlugin,
         pause::plugin,
-        popup::plugin,
         #[cfg(feature = "dev")]
         dev_tools::plugin,
     ));

@@ -4,9 +4,9 @@ use std::time::Instant;
 use strum::IntoEnumIterator;
 
 use crate::cards::{Card, CardValue, Deck, Suit};
-use crate::{ClientId, Player};
 use crate::event::GameEvent;
 pub use crate::the_hidden_card::prelude::*;
+use crate::{ClientId, Player};
 
 type PlayerSetIndex = usize;
 type CalleeSetIndex = usize;
@@ -14,10 +14,11 @@ type CallerIndex = usize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PlayerSeat {
-    player: Option<Player>,
+    pub player: Option<Player>,
     hands: Vec<Card>,
     coins: i32,  // 金币
-    ready: bool, // 准备状态
+    pub ready: bool, // 准备状态
+    pub hands_ready: bool,
     score: i32,  // 分数
 }
 
@@ -29,6 +30,7 @@ impl Default for PlayerSeat {
             coins: 0,
 
             ready: false,
+            hands_ready: false,
             score: 0,
         }
     }
@@ -72,11 +74,14 @@ impl PlayerSeat {
 
         let to_remove: HashSet<_> = cards.iter().collect();
 
-        self.hands = self.hands.drain(..).filter(|card| !to_remove.contains(card)).collect();
+        self.hands = self
+            .hands
+            .drain(..)
+            .filter(|card| !to_remove.contains(card))
+            .collect();
 
         Ok(())
     }
-
 
     /// 获取玩家某张牌型的没有的花色
     fn get_complement_suit(&self, card_value: CardValue) -> Vec<Card> {
@@ -120,8 +125,8 @@ pub struct GameState {
     hand_analyzer: HandAnalyzer,
     special_card: Card,
 
-    mode: Option<GameMode>,
-    stage: Stage,
+    pub mode: Option<GameMode>,
+    pub stage: Stage,
 
     lead: Option<PlayerSetIndex>,               // 第一个出牌的人
     the_hidden: Option<PlayerSetIndex>,         // 隐藏队友
@@ -169,6 +174,20 @@ impl GameState {
         &self.seats
     }
 
+    pub fn get_seat_by_id(&self, player_id: ClientId) -> Option<&PlayerSeat> {
+        self.seats
+            .iter()
+            .filter(|seat| seat.player.as_ref().map(|p| p.id) == Some(player_id))
+            .next()
+    }
+
+    pub fn get_seat_mut_by_id(&mut self, player_id: ClientId) -> Option<&mut PlayerSeat> {
+        self.seats
+            .iter_mut()
+            .filter(|seat| seat.player.as_ref().map(|p| p.id) == Some(player_id))
+            .next()
+    }
+
     pub fn add_history(&mut self, event: GameEvent) {
         self.history.push(event);
     }
@@ -194,11 +213,15 @@ impl GameState {
     }
 
     pub fn get_player_seat_index(&self, player: Player) -> Option<usize> {
-        self.seats.iter().position(|set| set.player == Some(player.clone()))
+        self.seats
+            .iter()
+            .position(|set| set.player == Some(player.clone()))
     }
 
     pub fn get_player_seat_index_by_id(&self, player_id: ClientId) -> Option<usize> {
-        self.seats.iter().position(|set| set.player.as_ref().map(|p| p.id) == Some(player_id))
+        self.seats
+            .iter()
+            .position(|set| set.player.as_ref().map(|p| p.id) == Some(player_id))
     }
 
     pub fn get_empty_seat_index(&self) -> Option<usize> {
@@ -210,11 +233,31 @@ impl GameState {
         None
     }
 
+    pub fn set_seat_to_ready(&mut self, seat_index: usize) {
+        self.seats[seat_index].ready = true;
+    }
+
+    pub fn is_all_ready(&self) -> bool {
+        for seat in self.seats.iter() {
+            if !seat.ready {
+                return false;
+            }
+        }
+        true
+    }
+
     pub fn assign_seat(&mut self, player: Player, seat_index: usize) {
         self.seats[seat_index] = PlayerSeat {
             player: Some(player),
             ..Default::default()
         };
+    }
+
+    pub fn set_hands(&mut self, client_id: ClientId, hands: Vec<Card>) {
+        if let Some(mut seat) = self.get_seat_mut_by_id(client_id) {
+            seat.hands.clear();
+            seat.hands.extend(hands);
+        }
     }
 
     fn next_player(&mut self) {
@@ -251,6 +294,9 @@ impl GameState {
         self.last_played_set_index = None;
         self.is_hidden_card_shown = false;
         self.finished_order.clear();
+
+        self.mode = None;
+        self.stage = Stage::PreGame;
     }
 
     /// 洗牌
@@ -269,7 +315,7 @@ impl GameState {
     }
 
     /// 第一步：准备游戏，Stage::[PreGame, EndGame] 状态下可执行，执行后游戏进入发牌状态 Stage::DealCards
-    /// 当所有玩家准备好后开始游戏
+    /// 当所有玩家准备好后执行开始游戏
     /// 一轮游戏结束后需要重置玩家准备状态
     /// 初始化游戏状态
     /// 1，重置状态
@@ -277,8 +323,17 @@ impl GameState {
     /// 3，发牌
     fn prepare_game(&mut self) {
         self.reset();
-        self.shuffle();
-        self.deal();
+        self.stage = Stage::PreGame;
+    }
+
+    /// 第一步：发牌，Stage::[PreGame] 状态下可执行，执行后游戏进入发牌状态 Stage::DealCards
+    /// 当所有玩家准备好后执行开始游戏
+    /// 一轮游戏结束后需要重置玩家准备状态
+    /// 初始化游戏状态
+    /// 1，重置状态
+    /// 2，洗牌
+    /// 3，发牌
+    pub fn to_deal_cards_stage(&mut self) {
         self.stage = Stage::DealCards;
     }
 
@@ -357,7 +412,7 @@ impl GameState {
         let player_set = &mut self.seats[player_set_index];
 
         let result = player_set.remove_cards(&cards);
-        
+
         if let Err(err) = result {
             return Err(err);
         }
@@ -461,7 +516,11 @@ mod tests {
         match state.stage {
             Stage::CallCard(caller_index) => {
                 // 验证叫牌者持有特殊牌
-                assert!(state.seats[caller_index].hands.contains(&state.special_card));
+                assert!(
+                    state.seats[caller_index]
+                        .hands
+                        .contains(&state.special_card)
+                );
             },
             _ => panic!("Should be in CallCard stage"),
         }
@@ -535,8 +594,6 @@ mod tests {
         assert!(state.play_card(0, valid_cards).is_ok());
         assert!(state.play_card(0, invalid_cards).is_err());
     }
-
-
 
     #[test]
     fn test_player_set_operations() {

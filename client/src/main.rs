@@ -18,6 +18,7 @@ mod game;
 
 #[cfg(feature = "dev")]
 mod fake_player;
+mod plugin;
 
 use crate::prelude::*;
 fn main() -> AppExit {

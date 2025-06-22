@@ -6,12 +6,14 @@ use crate::game::bincode::BincodeConfig;
 use crate::screens::ScreenState;
 use shared::the_hidden_card::prelude::*;
 use shared::{Player, Reducer};
+use crate::core::AppSystems;
 
 pub(crate) fn plugin(app: &mut App) {
     app.add_event::<GameEvent>();
     app.add_systems(
         Update,
         receive_event_from_server
+            .in_set(AppSystems::SyncEarly)
             .run_if(in_state(ScreenState::Title).or(in_state(ScreenState::Gameplay)))
             .run_if(resource_exists::<RenetClient>)
             .run_if(resource_exists::<Player>),

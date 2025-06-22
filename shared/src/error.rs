@@ -1,6 +1,6 @@
 use strum_macros::Display;
-
-#[derive(Debug, PartialEq, Eq, Display)]
+use serde::{Deserialize, Serialize};
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize,  Clone, Display)]
 pub enum RoomServiceError {
     AlreadyInRoom,
     RoomNotFound,

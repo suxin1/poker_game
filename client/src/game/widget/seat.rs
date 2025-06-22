@@ -59,7 +59,7 @@ where
             ),
             (
                 PlayerNameText,
-                body_text("何书鑫"),
+                body_text("空"),
             ),
             (
                 ReadyMarker

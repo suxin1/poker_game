@@ -4,13 +4,16 @@ use crate::theme::widget::text_base;
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use std::mem::take;
 
-pub(super) fn plugin(app: &mut App) {
-    app.add_event::<OpenPopupEvent>()
-        .add_event::<ClosePopupEvent>()
-        .insert_resource(PopupCounter(10))
-        .insert_resource(PopupStack(Vec::new()))
-        .add_observer(open_popup_system)
-        .add_observer(close_popup_system);
+pub struct PopupPlugin;
+impl Plugin for PopupPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_event::<OpenPopupEvent>()
+            .add_event::<ClosePopupEvent>()
+            .insert_resource(PopupCounter(10))
+            .insert_resource(PopupStack(Vec::new()))
+            .add_observer(open_popup_system)
+            .add_observer(close_popup_system);
+    }
 }
 
 #[derive(Resource)]

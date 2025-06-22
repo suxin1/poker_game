@@ -39,6 +39,12 @@ impl ThemeColor {
     pub const PRIMARY_DISABLED: Color = Color::srgba(0.400, 0.200, 0.400, 1.000);
     pub const PRIMARY_TEXT: Color = Color::srgba(0.157, 0.157, 0.157, 1.000);
 
+    // Utility Color
+    pub const SUCCESS: Color = Color::srgba_u8(186, 230, 55, 255);
+    pub const WARNING: Color = Color::srgba_u8(255, 169, 64, 255);
+    pub const DANGER: Color = Color::srgba_u8(255, 77, 79, 255);
+    pub const INFO: Color = Color::srgba_u8(181, 245, 236, 255);
+
     // Other UI colors
     pub const POPUP: Color = Color::srgba(0.106, 0.118, 0.122, 0.850);
     pub const OVERLAY: Color = Color::srgba(0.157, 0.157, 0.157, 0.980);
