@@ -15,6 +15,7 @@ use crate::prelude::*;
 pub mod prelude {
     pub use super::text::DynamicFontSize;
     pub use super::{interaction::InteractionPalette, palette as ui_palette, widget};
+    pub use super::widget::*;
 }
 
 

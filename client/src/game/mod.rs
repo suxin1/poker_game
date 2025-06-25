@@ -15,6 +15,7 @@ pub(super) fn plugin(app: &mut App) {
         assets::plugin,
         bincode::plugin,
         interaction::plugin,
+        widget::plugin,
         event::plugin,
         hidden_card::plugin,
         #[cfg(feature = "dev")]

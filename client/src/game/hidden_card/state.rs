@@ -35,7 +35,6 @@ fn update_state(
 ) {
     use GameEvent::*;
     for event in sys_events.read() {
-        info!("Update state from event {}", event);
         // 这里我们相信服务器给我们的事件是合法的，所以直接应用到游戏状态上, 非游戏状态更新事件会被GameState忽略。
         game_state.reduce(&event);
     }

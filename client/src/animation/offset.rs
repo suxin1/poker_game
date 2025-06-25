@@ -79,7 +79,9 @@ fn apply_node_offset(
         transform.translation += vec3(x, y, 0.0);
 
         let mut box_shadow = cq!(box_shadow);
-        c!(has_backup_box_shadow);
+        if !has_backup_box_shadow {
+            continue;
+        }
         for shadow in &mut box_shadow.0 {
             if let Ok(x) = shadow
                 .x_offset

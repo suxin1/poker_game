@@ -5147,6 +5147,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shared",
+ "tiny_bail",
  "tokio",
  "url",
 ]

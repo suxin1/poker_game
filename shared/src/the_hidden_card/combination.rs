@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::convert::TryInto;
-
+use serde::{Deserialize, Serialize};
 use crate::cards::{Card, CardNumericValue, CardValue};
 
 impl CardNumericValue for CardValue {
@@ -24,7 +24,7 @@ impl CardNumericValue for CardValue {
 }
 
 /// 牌型枚举
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Combination {
     Single(Card),               // 单张
     Pair([Card; 2]),            // 对子
@@ -76,9 +76,10 @@ impl Combination {
         }
     }
 
-    pub fn analyze(cards: Vec<Card>) {
+    pub fn analyze(cards: Vec<Card>) -> Combination {
+        // TODO 性能优化
         let analyzer = HandAnalyzer::from_cards(cards);
-        analyzer.analyze();
+        analyzer.analyze()
     }
 }
 

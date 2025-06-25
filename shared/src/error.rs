@@ -5,5 +5,6 @@ pub enum RoomServiceError {
     AlreadyInRoom,
     RoomNotFound,
     RoomFull,
-    ClientNotInRoom
+    ClientNotInRoom,
+    ActionNotAllowed,
 }

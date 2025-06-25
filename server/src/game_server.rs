@@ -23,10 +23,6 @@ impl RenetServerWithConfig {
         if !self.server.is_connected(client_id) {
             error!("Client disconnected: {}", client_id);
             error!("Current connected: {}", self.server.connected_clients());
-            error!("Client Id list:");
-            for client_id in self.server.clients_id() {
-                error!("{}", client_id);
-            }
             return;
         }
         info!("Send event: {} to client: {}", event, client_id);
@@ -99,14 +95,17 @@ impl RenetGameServer {
                 ServerEvent::ClientConnected { client_id } => {
                     // 处理用户重新连接，恢复用户状态
                     info!("Client connected: {}", client_id);
+                    let _ = self.room_manager.process_event(client_id, GameEvent::PlayerConnected(client_id), &mut self.server);
                 },
                 ServerEvent::ClientDisconnected { client_id, reason } => {
                     // 处理用户断开连接， 更新用户状态为离线
                     info!("Client disconnected: {}", client_id);
+                    let _ = self.room_manager.process_event(client_id, GameEvent::PlayerDisconnected(client_id), &mut self.server);
                 },
             }
         }
 
+        // 清空并发送上一帧需缓存的事件
         self.server.flush_events();
 
         for (client_id) in self.server.server.clients_id() {

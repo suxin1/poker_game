@@ -9,6 +9,8 @@ mod init;
 
 use bevy::prelude::*;
 
+pub use init::{MessageEvent};
+
 pub const PROTOCOL_ID: u64 = 7;
 
 pub const SERVER_ADDR: &str = "127.0.0.1:8080";

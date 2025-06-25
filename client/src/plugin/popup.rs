@@ -53,10 +53,8 @@ fn open_popup_system(
     )).id();
 
     cmds.entity(popup_root).add_child(content_panel);
-    // let a = cmds.entity(popup_root).commands();
-    // (event.content_builder)(popup_root);
-    // // let builder = event.content_builder.as_ref();
     popup_stack.0.push(popup_root);
+
     cmds.entity(content_panel).with_children(|parent| {
         (event.content_builder)(parent);
     });

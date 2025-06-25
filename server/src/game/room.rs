@@ -9,6 +9,7 @@ use shared::the_hidden_card::state::GameState;
 use shared::{Player, Reducer};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
+use tiny_bail::prelude::r;
 
 type RoomId = u64;
 
@@ -32,13 +33,14 @@ impl Room {
             server.send_event_next(client_id.clone(), event.clone());
         }
 
+        // 对事件做额外的处理
         match event {
             GameEvent::Ready { client_id: _ } => {
                 if self.game_state.is_all_ready() {
                     let event = GameEvent::ToDealCardStage;
                     self.process_event(event, server);
 
-                    // 发牌 
+                    // 发牌
                     // TODO 性能优化
                     self.deck.shuffle();
                     let mut deck = VecDeque::from(self.deck.get().clone());
@@ -69,6 +71,7 @@ impl Room {
                     }
 
                     // 发送发牌事件给所有玩家
+                    // TODO 改为以 seat_index 区分用户，因为手牌是挂在 PlayerSeat上面的
                     for (client_id, hand) in hands.iter_mut() {
                         let event = GameEvent::DealCards {
                             client_id: client_id.clone(),
@@ -78,15 +81,27 @@ impl Room {
                     }
                 }
             },
+            GameEvent::DealCardsDone(client_id) => {
+                if self.game_state.is_all_hands_ready() {
+                    let caller_index = r!(self.game_state.get_caller_index());
+                    let event = GameEvent::ToCallCardStage(caller_index);
+                    self.process_event(event, server);
+                }
+            }
             _ => {},
         }
     }
 
-    pub fn flush_hisotry(&mut self, client_id: ClientId, server: &mut RenetServerWithConfig) {
-        let history = self.game_state.get_history();
-        history.iter().for_each(|event| {
-            server.send_event_next(client_id.clone(), event.clone());
-        });
+    pub fn flush_history(&mut self, client_id: ClientId, server: &mut RenetServerWithConfig) {
+        // let history = self.game_state.get_history();
+        // history.iter().for_each(|event| {
+        //     server.send_event_next(client_id.clone(), event.clone());
+        // });
+
+    }
+
+    pub fn sync_state(&mut self, client_id: ClientId, server: &mut RenetServerWithConfig) {
+        server.send_event_next(client_id.clone(), GameEvent::SyncState(self.game_state.clone()));
     }
 
     pub fn join(
@@ -105,7 +120,10 @@ impl Room {
         // 发送加入房间成功事件
         server.send_event(player.id, GameEvent::JoinRoomOk { room_id: self.id });
         // 加入房间成功，下一帧将历史事件发送给客户端
-        self.flush_hisotry(player.id.clone(), server);
+        // self.flush_hisotry(player.id.clone(), server);
+
+        self.sync_state(player.id.clone(), server);
+
 
         // 下面的所有事件会同步给每一个客户端，每个客户端发送的事件不会直接应用到本地状态，
         // 都会通过服务器验证后才会发送给客户端并应用到本地状态。
@@ -116,6 +134,24 @@ impl Room {
             },
             server,
         );
+
+        Ok(())
+    }
+
+    pub fn rejoin(
+        &mut self,
+        player: Player,
+        server: &mut RenetServerWithConfig,
+    ) -> Result<(), RoomServiceError> {
+        if !self.players.contains(&player.id) {
+            return Err(RoomServiceError::ClientNotInRoom);
+        }
+
+        // 当前帧发送重新加入房间成功事件
+        server.send_event(player.id, GameEvent::ReJoinRoomOk { room_id: self.id });
+        // 加入房间成功，下一帧将历史事件发送给客户端
+        // self.flush_hisotry(player.id.clone(), server);
+        self.sync_state(player.id.clone(), server);
 
         Ok(())
     }
@@ -135,7 +171,7 @@ pub struct Rooms {
     client_room_map: HashMap<ClientId, RoomId>,
 
     next_room_id: RoomId,
-    // TODO 销毁房间
+    // TODO 销毁房间, 房间所有用户断开连接后立即销毁房间或60秒后销毁房间
 }
 
 impl Rooms {
@@ -208,6 +244,28 @@ impl Rooms {
         result
     }
 
+    pub fn rejoin_room(
+        &mut self,
+        player: Player,
+        server: &mut RenetServerWithConfig,
+    ) -> Result<(), RoomServiceError> {
+        let Some(room_id) = self.client_room_map.get(&player.id) else {
+            return Err(RoomServiceError::ClientNotInRoom);
+        };
+
+        let room = self
+            .rooms
+            .get(&room_id)
+            .ok_or(RoomServiceError::RoomNotFound)?;
+
+        let mut room = room.write().unwrap();
+
+        let result = room.rejoin(player.clone(), server);
+
+        result
+    }
+
+    /// 方便开发重置房间状态
     fn reset_room(&mut self, room_id: RoomId) -> Result<(), RoomServiceError> {
         let room = self
             .rooms
@@ -229,9 +287,62 @@ impl Rooms {
         server: &mut RenetServerWithConfig,
     ) -> Result<(), RoomServiceError> {
         match event {
+            GameEvent::SyncState(_) => {
+                // 阻止非法事件
+                Err(RoomServiceError::ActionNotAllowed)
+            }
+            GameEvent::ClientJustLaunched(client_id) => {
+                let room_id = self.client_room_map.get(&client_id);
+
+                if let Some(room_id) = room_id {
+                    let room = self
+                        .rooms
+                        .get(room_id);
+                    if let Some(room) = room {
+                        // 向用户发送确认重新加入房间事件
+                        server.send_event(client_id, GameEvent::AskForRejoinRoom(room_id.clone()))
+                    } else {
+                        // 房间已经不存在，将玩家移除 [ClientId] - [RoomId] 映射
+                        self.client_room_map.remove(&client_id);
+                    }
+                }
+                Ok(())
+            }
             GameEvent::CreateRoom { player } => self.create_room(player, server),
             GameEvent::JoinRoom { player, room_id } => self.join_room(player, room_id, server),
             GameEvent::RoomReset { room_id } => self.reset_room(room_id),
+            GameEvent::ReJoinRoom { player} => self.rejoin_room(player, server),
+            GameEvent::PlayerConnected(client_id) => {
+                let room_id = self.client_room_map.get(&client_id);
+                // 如果玩家已经加入房间，则将事件交给房间处理
+                if let Some(room_id) = room_id {
+                    let room = self
+                        .rooms
+                        .get(room_id);
+                    if let Some(room) = room {
+                        room.write().unwrap().process_event(event.clone(), server);
+                    } else {
+                        // 房间已经不存在，将玩家移除 [ClientId] - [RoomId] 映射
+                        self.client_room_map.remove(&client_id);
+                    }
+                }
+                Ok(())
+            },
+            GameEvent::PlayerLeave(client_id) => {
+                let room_id = self.client_room_map.get(&client_id);
+                // 如果玩家已经加入房间，则将事件交给房间处理
+                if let Some(room_id) = room_id {
+                    let room = self
+                        .rooms
+                        .get(room_id);
+                    if let Some(room) = room {
+                        room.write().unwrap().process_event(event.clone(), server);
+                    }
+                    // 房间已经不存在，将玩家移除 [ClientId] - [RoomId] 映射
+                    self.client_room_map.remove(&client_id);
+                }
+                Ok(())
+            }
             _ => {
                 let room_id = self
                     .client_room_map

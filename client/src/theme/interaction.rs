@@ -2,7 +2,7 @@ use crate::asset_tracking::LoadResource;
 use crate::core::audio::{AudioSettings, ui_audio};
 use bevy::ecs::component::Mutable;
 use bevy::reflect::{GetTypeRegistration, Typed};
-
+use crate::animation::offset::NodeOffset;
 use crate::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
@@ -11,6 +11,7 @@ pub(super) fn plugin(app: &mut App) {
     // app.register_type::<InteractionPalette>();
     // app.add_systems(Update, apply_interaction_palette);
     app.configure::<InteractionPalette<BackgroundColor>>();
+    app.configure::<InteractionPalette<NodeOffset>>();
 
     app.register_type::<InteractionAssets>();
     app.load_resource::<InteractionAssets>();
@@ -21,6 +22,10 @@ pub(super) fn plugin(app: &mut App) {
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct InteractionDisabled(pub bool);
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub struct InteractionSelected(pub bool);
 
 /// Palette for widget interactions. Add this to an entity that supports
 /// [`Interaction`]s, such as a button, to change its [`BackgroundColor`] based
@@ -33,6 +38,7 @@ pub struct InteractionPalette<C: Component<Mutability = Mutable> + Clone> {
     pub hovered: C,
     pub pressed: C,
     pub disabled: C,
+    pub selected: C,
 }
 
 impl<C: Component<Mutability = Mutable> + Clone + Typed + FromReflect + GetTypeRegistration>
@@ -54,13 +60,17 @@ fn apply_interaction_palette<C: Component<Mutability = Mutable> + Clone>(
             &InteractionPalette<C>,
             &mut C,
             Option<&InteractionDisabled>,
+            Option<&InteractionSelected>,
         ),
         Or<(Changed<Interaction>, Changed<InteractionDisabled>)>,
     >,
 ) {
-    for (interaction, palette, mut value, disabled) in &mut palette_query {
+    for (interaction, palette, mut value, disabled, selected) in &mut palette_query {
         *value = if matches!(disabled, Some(InteractionDisabled(true))) {
             &palette.disabled
+        } else if matches!(selected, Some(InteractionSelected(true))) {
+            // TODO 实体在选中的状态下会阻止 None Hover Pressed 系统交互
+            &palette.selected
         } else {
             match interaction {
                 Interaction::None => &palette.none,

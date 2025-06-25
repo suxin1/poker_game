@@ -1,4 +1,6 @@
-use log::info;
+use log::{error, info};
+use tiny_bail::prelude::*;
+
 use crate::Reducer;
 use crate::event::GameEvent;
 use crate::the_hidden_card::error::GameError;
@@ -22,11 +24,35 @@ impl Reducer<GameEvent, GameError> for  GameState {
                 self.to_deal_cards_stage();
             }
             DealCards {client_id, cards} => {
-
+                self.set_hands(client_id.clone(), cards.clone());
+            }
+            DealCardsDone(client_id) => {
+                let seat = r!(self.get_seat_mut_by_id(client_id.clone()));
+                seat.hands_ready = true;
+            }
+            ToCallCardStage(idx) => {
+                self.to_call_card_stage(idx.clone());
+            }
+            CallCard {seat_index, card} => {
+                self.call_card_start(seat_index.clone(), card.clone());
+            }
+            Blocking(index) => {
+                self.blocking_start(index.clone());
+            }
+            PlayerDisconnected(client_id) => {
+                let seat = r!(self.get_seat_mut_by_id(client_id.clone()));
+                seat.player_connected = false;
+            }
+            PlayerConnected(client_id) => {
+                let seat = r!(self.get_seat_mut_by_id(client_id.clone()));
+                seat.player_connected = true;
+            }
+            SyncState(state) => {
+                self.set_state_by_state(state);
             }
             _ => {}
         }
-        self.add_history(event.clone());
+        // self.add_history(event.clone());
     }
 
     fn dispatch(&mut self, event: &GameEvent) -> Result<(), GameError> {
@@ -58,9 +84,29 @@ impl Reducer<GameEvent, GameError> for  GameState {
             DealCards { client_id, cards } => {
                 cards.len() == 13
             }
+            DealCardsDone(client_id) => {
+                let Some(seat) = self.get_seat_by_id(client_id.clone()) else {
+                    return false;
+                };
+                if seat.hands_ready {
+                    return false;
+                }
+                true
+            }
+            ToCallCardStage(index) => {
+                self.stage == Stage::DealCards && self.seat_hands_has_special_card(index.clone())
+            }
+            Blocking(index) => {
+                matches!(self.stage, Stage::CallCard(_))
+            }
+            CallCard {seat_index, card} => {
+                self.stage == Stage::CallCard(seat_index.clone())
+            }
+            PlayerDisconnected(_) => true,
+            SyncState(_) => true,
             _ => {
-                info!("Event not handle: {}", event);
-                todo!()
+                error!(target: "Game state", "Not implement {}", event);
+                false
             }
         }
     }

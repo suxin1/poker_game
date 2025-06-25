@@ -1,4 +1,4 @@
-use crate::game::hidden_card::level::LevelUiRoot;
+use crate::game::hidden_card::level::{LevelUiRoot, spawn_level};
 pub use crate::game::widget::prelude::*;
 use crate::prelude::*;
 use crate::screens::ScreenState;
@@ -6,11 +6,14 @@ use bevy::reflect::Array;
 use shared::Player;
 use shared::event::GameEvent;
 use shared::the_hidden_card::state::GameState;
+use std::f32::consts::PI;
 use url::Position;
 
-use strum_macros::Display;
+use crate::animation::ui_sprite_animation::{AnimationIndices, AnimationTimer};
+use crate::game::assets::IndicatorAsset;
 use crate::game::hidden_card::game_event::LocalGameEvent;
 use crate::theme::palette::ThemeColor;
+use strum_macros::Display;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -20,6 +23,137 @@ pub(super) fn plugin(app: &mut App) {
             .run_if(in_state(ScreenState::Gameplay)),
     );
     app.add_observer(update_player_seat);
+
+    app.add_systems(
+        OnEnter(ScreenState::Gameplay),
+        setup_seat_view.after(spawn_level),
+    );
+}
+
+fn setup_seat_view(
+    mut cmds: Commands,
+    mut ui_root: Query<Entity, With<LevelUiRoot>>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    assets: Res<IndicatorAsset>,
+) {
+    let ui_root = r!(ui_root.single());
+
+    let texture = assets.arrow.clone();
+    let layout = TextureAtlasLayout::from_grid(UVec2::splat(32), 5, 1, None, None);
+    let texture_atlas_layout = texture_atlas_layouts.add(layout);
+    // Use only the subset of sprites in the sheet that make up the run animation
+    let animation_indices = AnimationIndices { first: 0, last: 4 };
+
+    cmds.entity(ui_root).with_children(|parent| {
+        parent.spawn((
+            Name::new("Game UI root"),
+            Node::COLUMN_CENTER.full_size(),
+            Pickable::IGNORE,
+            LevelUiRoot,
+            StateScoped(ScreenState::Gameplay),
+            children![
+                seat_view(
+                    SeatPosition::Bottom.get_layout(),
+                    SeatPosition::Bottom,
+                    children![(
+                        Node {
+                            position_type: PositionType::Absolute,
+                            top: Val::Px(-32.),
+                            ..default()
+                        },
+                        (
+                            ImageNode::from_atlas_image(
+                                texture.clone(),
+                                TextureAtlas {
+                                    layout: texture_atlas_layout.clone(),
+                                    index: animation_indices.first.clone()
+                                }
+                            ),
+                            animation_indices.clone(),
+                            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+                            Transform::from_rotation(Quat::from_rotation_z(-PI))
+                        ),
+                    )],
+                    SEAT_COLOR[4],
+                    seat_click
+                ),
+                seat_view(
+                    SeatPosition::Right.get_layout(),
+                    SeatPosition::Right,
+                    children![(
+                        Node {
+                            position_type: PositionType::Absolute,
+                            top: Val::Px(-32.),
+                            ..default()
+                        },
+                        (
+                            ImageNode::from_atlas_image(
+                                texture.clone(),
+                                TextureAtlas {
+                                    layout: texture_atlas_layout.clone(),
+                                    index: animation_indices.first.clone()
+                                }
+                            ),
+                            animation_indices.clone(),
+                            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+                            Transform::from_rotation(Quat::from_rotation_z(-PI))
+                        ),
+                    )],
+                    SEAT_COLOR[4],
+                    seat_click
+                ),
+                seat_view(
+                    SeatPosition::Top.get_layout(),
+                    SeatPosition::Top,
+                    children![(
+                        Node {
+                            position_type: PositionType::Absolute,
+                            bottom: Val::Px(-32.),
+                            ..default()
+                        },
+                        (
+                            ImageNode::from_atlas_image(
+                                texture.clone(),
+                                TextureAtlas {
+                                    layout: texture_atlas_layout.clone(),
+                                    index: animation_indices.first.clone()
+                                }
+                            ),
+                            animation_indices.clone(),
+                            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+                        ),
+                    )],
+                    SEAT_COLOR[4],
+                    seat_click
+                ),
+                seat_view(
+                    SeatPosition::Left.get_layout(),
+                    SeatPosition::Left,
+                    children![(
+                        Node {
+                            position_type: PositionType::Absolute,
+                            top: Val::Px(-32.),
+                            ..default()
+                        },
+                        (
+                            ImageNode::from_atlas_image(
+                                texture.clone(),
+                                TextureAtlas {
+                                    layout: texture_atlas_layout.clone(),
+                                    index: animation_indices.first.clone()
+                                }
+                            ),
+                            animation_indices.clone(),
+                            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+                            Transform::from_rotation(Quat::from_rotation_z(-PI))
+                        ),
+                    )],
+                    SEAT_COLOR[4],
+                    seat_click
+                ),
+            ],
+        ));
+    });
 }
 
 #[derive(Resource)]
@@ -33,7 +167,7 @@ fn handle_seat_update_event(
     mut game_event: EventReader<GameEvent>,
     state: Res<GameState>,
     local_player: Res<Player>,
-    mut is_seat_position_map_available: Local<bool>
+    mut is_seat_position_map_available: Local<bool>,
 ) {
     for event in game_event.read() {
         match event {
@@ -54,11 +188,22 @@ fn handle_seat_update_event(
                     // event_writer.write(LocalGameEvent::RunSeatUpdate);
                 }
             },
-            GameEvent::Ready {client_id} => {
+            GameEvent::Ready { client_id } => {
                 if *is_seat_position_map_available {
                     cmds.trigger(RunSeatUpdate);
                 }
-            }
+            },
+            GameEvent::SyncState(_) => {
+                let local_index = c!(state.get_player_seat_index_by_id(local_player.id));
+                let seat_map = get_position_relative_to_local(local_index);
+                *is_seat_position_map_available = true;
+                cmds.remove_resource::<SeatPositionMap>();
+                cmds.insert_resource(SeatPositionMap(seat_map));
+
+                if *is_seat_position_map_available {
+                    cmds.trigger(RunSeatUpdate);
+                }
+            },
             _ => {},
         }
     }
@@ -88,7 +233,6 @@ fn update_player_seat(
             };
         }
 
-
         for child in children.iter() {
             if let Ok(mut text) = player_name_text_query.get_mut(child) {
                 **text = player_data.name.clone();
@@ -100,42 +244,6 @@ fn update_player_seat(
             };
         }
     }
-}
-
-pub fn seats_view() -> impl Bundle {
-    (
-        Name::new("Game UI root"),
-        Node::COLUMN_CENTER.full_size(),
-        Pickable::IGNORE,
-        LevelUiRoot,
-        StateScoped(ScreenState::Gameplay),
-        children![
-            seat_view(
-                SeatPosition::Bottom.get_layout(),
-                SeatPosition::Bottom,
-                SEAT_COLOR[4],
-                seat_click
-            ),
-            seat_view(
-                SeatPosition::Right.get_layout(),
-                SeatPosition::Right,
-                SEAT_COLOR[4],
-                seat_click
-            ),
-            seat_view(
-                SeatPosition::Top.get_layout(),
-                SeatPosition::Top,
-                SEAT_COLOR[4],
-                seat_click
-            ),
-            seat_view(
-                SeatPosition::Left.get_layout(),
-                SeatPosition::Left,
-                SEAT_COLOR[4],
-                seat_click
-            ),
-        ],
-    )
 }
 
 pub fn seat_click(_: Trigger<Pointer<Click>>) {

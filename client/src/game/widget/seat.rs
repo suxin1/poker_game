@@ -1,5 +1,5 @@
-use crate::prelude::*;
 use crate::game::widget::prelude::*;
+use crate::prelude::*;
 use bevy::ecs::system::IntoObserverSystem;
 
 const AVATAR_SIZE: Val = Vw(5.5);
@@ -22,7 +22,13 @@ pub struct PlayerAvatarBox;
 #[derive(Component)]
 pub struct ReadyMarker;
 
-pub fn seat_view<E, B, M, I>(position: AbsolutePosition, marker: impl Bundle, color: Color, action: I) -> impl Bundle
+pub fn seat_view<E, B, M, I>(
+    position: AbsolutePosition,
+    marker: impl Bundle,
+    children: impl Bundle,
+    color: Color,
+    action: I,
+) -> impl Bundle
 where
     E: Event,
     B: Bundle,
@@ -57,12 +63,20 @@ where
                 BackgroundColor(color),
                 PlayerAvatarBox,
             ),
+            (PlayerNameText, body_text("空"),),
+            (ReadyMarker),
             (
-                PlayerNameText,
-                body_text("空"),
-            ),
-            (
-                ReadyMarker
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Px(0.),
+                    left: Px(0.),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    width: Percent(100.),
+                    height: Percent(100.),
+                    ..default()
+                },
+                children
             )
         ],
     )

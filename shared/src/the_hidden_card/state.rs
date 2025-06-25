@@ -12,14 +12,16 @@ type PlayerSetIndex = usize;
 type CalleeSetIndex = usize;
 type CallerIndex = usize;
 
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PlayerSeat {
     pub player: Option<Player>,
-    hands: Vec<Card>,
-    coins: i32,  // 金币
+    pub hands: Vec<Card>,
+    coins: i32,      // 金币
+    score: i32, // 分数
     pub ready: bool, // 准备状态
     pub hands_ready: bool,
-    score: i32,  // 分数
+    pub player_connected: bool,
 }
 
 impl Default for PlayerSeat {
@@ -32,6 +34,8 @@ impl Default for PlayerSeat {
             ready: false,
             hands_ready: false,
             score: 0,
+
+            player_connected: false,
         }
     }
 }
@@ -95,6 +99,19 @@ impl PlayerSeat {
         suits
     }
 
+    pub fn get_callable_cards(&self) -> Option<Vec<Card>> {
+        if !self.has_full_of(CardValue::Two) {
+            return Some(self.get_complement_suit(CardValue::Two));
+        } else if !self.has_full_of(CardValue::Ace) {
+            return Some(self.get_complement_suit(CardValue::Ace));
+        } else if !self.has_full_of(CardValue::King) {
+            return Some(self.get_complement_suit(CardValue::King));
+        } else if !self.has_full_of(CardValue::Queen) {
+            return Some(self.get_complement_suit(CardValue::Queen));
+        }
+        None
+    }
+
     fn reset(&mut self) {
         self.score = 0;
         self.ready = false;
@@ -111,18 +128,16 @@ pub enum Stage {
     Ended,                    // 游戏结束
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum GameMode {
     HiddenAllies((CallerIndex, CalleeSetIndex, Card)), // 暗叫组队
     OneVsThree(PlayerSetIndex),                        // 包牌
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[cfg_attr(feature = "bevy", derive(bevy_ecs::prelude::Resource))]
 pub struct GameState {
     seats: [PlayerSeat; 4],
-    deck: Deck,
-    hand_analyzer: HandAnalyzer,
     special_card: Card,
 
     pub mode: Option<GameMode>,
@@ -137,9 +152,9 @@ pub struct GameState {
     last_played_cards: Option<Combination>,
     table_score_counter: i32,
 
-    finished_order: VecDeque<(PlayerSetIndex, Instant)>,
+    finished_order: VecDeque<PlayerSetIndex>,
 
-    history: Vec<GameEvent>,
+    // history: Vec<GameEvent>,
 }
 
 impl Default for GameState {
@@ -148,8 +163,6 @@ impl Default for GameState {
 
         Self {
             seats: sets,
-            deck: Deck::new(),
-            hand_analyzer: HandAnalyzer::new(),
             special_card: Card::new(Suit::Spades, CardValue::Seven), //  特殊牌黑桃7喊牌
 
             mode: None,
@@ -164,7 +177,7 @@ impl Default for GameState {
             table_score_counter: 0,
             finished_order: VecDeque::new(),
 
-            history: Vec::new(),
+            // history: Vec::new(),
         }
     }
 }
@@ -174,12 +187,10 @@ impl GameState {
         &self.seats
     }
 
-    pub fn get_seat_by_id(&self, player_id: ClientId) -> Option<&PlayerSeat> {
-        self.seats
-            .iter()
-            .filter(|seat| seat.player.as_ref().map(|p| p.id) == Some(player_id))
-            .next()
+    pub fn set_state_by_state(&mut self, state: &GameState) {
+        *self = state.clone();
     }
+
 
     pub fn get_seat_mut_by_id(&mut self, player_id: ClientId) -> Option<&mut PlayerSeat> {
         self.seats
@@ -188,13 +199,13 @@ impl GameState {
             .next()
     }
 
-    pub fn add_history(&mut self, event: GameEvent) {
-        self.history.push(event);
-    }
-
-    pub fn get_history(&self) -> &[GameEvent] {
-        &self.history
-    }
+    // pub fn add_history(&mut self, event: GameEvent) {
+    //     self.history.push(event);
+    // }
+    //
+    // pub fn get_history(&self) -> &[GameEvent] {
+    //     &self.history
+    // }
 
     fn get_active_set(&self) -> Option<PlayerSeat> {
         if let Some(index) = self.current_player_set {
@@ -212,6 +223,13 @@ impl GameState {
         self.seats[index].player.is_none()
     }
 
+    pub fn get_seat_by_id(&self, player_id: ClientId) -> Option<&PlayerSeat> {
+        self.seats
+            .iter()
+            .filter(|seat| seat.player.as_ref().map(|p| p.id) == Some(player_id))
+            .next()
+    }
+    
     pub fn get_player_seat_index(&self, player: Player) -> Option<usize> {
         self.seats
             .iter()
@@ -238,6 +256,15 @@ impl GameState {
     }
 
     pub fn is_all_ready(&self) -> bool {
+        for seat in self.seats.iter() {
+            if !seat.ready {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn is_all_hands_ready(&self) -> bool {
         for seat in self.seats.iter() {
             if !seat.ready {
                 return false;
@@ -299,20 +326,6 @@ impl GameState {
         self.stage = Stage::PreGame;
     }
 
-    /// 洗牌
-    fn shuffle(&mut self) {
-        self.deck.shuffle();
-    }
-
-    /// 发牌
-    fn deal(&mut self) {
-        let mut deck = VecDeque::from(self.deck.get().clone());
-        for set in self.seats.iter_mut() {
-            for _ in 0..13 {
-                set.hands.push(deck.pop_front().unwrap())
-            }
-        }
-    }
 
     /// 第一步：准备游戏，Stage::[PreGame, EndGame] 状态下可执行，执行后游戏进入发牌状态 Stage::DealCards
     /// 当所有玩家准备好后执行开始游戏
@@ -342,20 +355,44 @@ impl GameState {
     /// 改状态下持有特殊牌的玩家有两个按钮： 叫牌（最多4个牌型按钮）和一个包牌按钮
     /// 其他玩家只有一个按钮： 包牌
     /// 按照优先原则
-    fn to_call_card_stage(&mut self) {
-        // 找出有黑桃7的玩家的索引
+    pub fn to_call_card_stage(&mut self, caller_index: usize) {
+        self.stage = Stage::CallCard(caller_index);
+    }
+
+    pub fn get_caller_id(&self) -> Option<ClientId> {
         let caller_index = self
             .seats
             .iter()
             .position(|set| set.hands.iter().any(|card| *card == self.special_card));
 
-        self.stage = Stage::CallCard(caller_index.unwrap());
+        let Some(caller_index) = caller_index else {
+            return None;
+        };
+
+        let Some(player) = &self.seats[caller_index].player else {
+            return None;
+        };
+
+        Some(player.id)
+    }
+
+    pub fn get_caller_index(&self) -> Option<usize> {
+        let caller_index = self
+            .seats
+            .iter()
+            .position(|set| set.hands.iter().any(|card| *card == self.special_card));
+
+        caller_index
+    }
+
+    pub fn seat_hands_has_special_card(&self, index: usize) -> bool {
+        self.seats[index].hands.contains(&self.special_card)
     }
 
     /// 第三步：当前状态：Stage::CallCard(caller_index) 执行后进入下一个状态：Stage::InGame
     /// 设置游戏模式为 GameMode::OneVsThree(player_set_index)
     /// 有玩家包牌后始游戏
-    fn blocking_start(&mut self, player_set_index: PlayerSetIndex) {
+    pub fn blocking_start(&mut self, player_set_index: PlayerSetIndex) {
         if !matches!(self.stage, Stage::CallCard(_)) {
             return;
         }
@@ -369,7 +406,7 @@ impl GameState {
     /// 第三步：当前状态：Stage::CallCard(caller_index) 执行后进入下一个状态：Stage::InGame
     /// 设置游戏模式为 GameMode::HiddenAllies((caller_index, callee_index, call_card))
     /// 玩家叫牌后开始
-    fn call_card_start(&mut self, caller_index: CallerIndex, call_card: Card) {
+    pub fn call_card_start(&mut self, caller_index: CallerIndex, call_card: Card) {
         if !matches!(self.stage, Stage::CallCard(_)) {
             return;
         }
@@ -398,7 +435,7 @@ impl GameState {
         player_set_index: PlayerSetIndex,
         cards: Vec<Card>,
     ) -> Result<(), String> {
-        let combo = self.hand_analyzer.set(cards.clone()).analyze();
+        let combo = Combination::analyze(cards.clone());
 
         if combo == Combination::Invalid {
             return Err("无效牌型".to_string());
@@ -509,10 +546,9 @@ mod tests {
     #[test]
     fn test_call_card_stage_transition() {
         let mut state = GameState::default();
-        state.shuffle();
         state.prepare_game();
-
-        state.to_call_card_stage();
+        let index = state.get_caller_index();
+        state.to_call_card_stage(index.unwrap().clone());
         match state.stage {
             Stage::CallCard(caller_index) => {
                 // 验证叫牌者持有特殊牌
@@ -530,7 +566,8 @@ mod tests {
     fn test_blocking_start() {
         let mut state = GameState::default();
         state.prepare_game();
-        state.to_call_card_stage();
+        let index = state.get_caller_index();
+        state.to_call_card_stage(index.unwrap().clone());
 
         let blocker_index = 2;
         state.blocking_start(blocker_index);
@@ -551,7 +588,8 @@ mod tests {
     fn test_call_card_start() {
         let mut state = GameState::default();
         state.prepare_game();
-        state.to_call_card_stage();
+        let index = state.get_caller_index();
+        state.to_call_card_stage(index.unwrap().clone());
 
         let callable = state.get_callable_cards().unwrap();
         let call_card = callable.choose(&mut rng()).unwrap(); // 任意测试牌

@@ -4,8 +4,8 @@ use crate::prelude::*;
 use crate::screens::ScreenState;
 
 use crate::game::assets::CardAssets;
-use crate::game::hidden_card::player::{SeatPosition, seat_click, seats_view};
-use crate::game::widget::prelude::*;
+use crate::game::hidden_card::player::{SeatPosition, seat_click};
+use crate::game::hidden_card::hands::hands_view;
 
 #[derive(Component)]
 pub struct LevelUiRoot;
@@ -24,17 +24,7 @@ pub fn spawn_level(
         StateScoped(ScreenState::Gameplay),
         BackgroundColor(Color::srgba_u8(28, 119, 92, 255)),
         children![
-            hands_view(children![
-                card_view(
-                    get_card_img(Card::new(Suit::Spades, CardValue::Ace), &*card_assets),
-                    card_select
-                ),
-                card_view(
-                    get_card_img(Card::new(Suit::Hearts, CardValue::Ace), &*card_assets),
-                    card_select
-                ),
-            ]),
-            seats_view()
+            hands_view(children![]),
         ],
     ));
 }

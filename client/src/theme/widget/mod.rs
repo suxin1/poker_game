@@ -1,5 +1,7 @@
 //! Helper functions for creating common widgets.
 
+mod text;
+
 use std::borrow::Cow;
 
 use bevy::{
@@ -10,8 +12,9 @@ use bevy::{
 
 use crate::prelude::*;
 use crate::theme::interaction::InteractionDisabled;
-use crate::theme::text::HAN_FONT_HANDLE;
 use crate::theme::{interaction::InteractionPalette, palette::*};
+
+pub use crate::theme::widget::text::*;
 
 /// A root UI node that fills the window and centers its content.
 pub fn ui_root(name: impl Into<Cow<'static, str>>) -> impl Bundle {
@@ -62,35 +65,7 @@ pub fn body(children: impl Bundle) -> impl Bundle {
     )
 }
 
-/// A app wide base text widget, all text should use this.
-pub fn text_base(text: impl AsRef<str>, font_size: Val, text_color: Color) -> impl Bundle {
-    let text = text.as_ref();
-    (
-        Name::new(format!("Label(\"{text}\")")),
-        Text::new(text),
-        TextColor(text_color),
-        TextFont {
-            font: HAN_FONT_HANDLE,
-            ..default()
-        },
-        DynamicFontSize::new(font_size).with_step(8.0),
-    )
-}
 
-/// A simple header label. Bigger than [`label`].
-pub fn header(text: impl Into<String>) -> impl Bundle {
-    (
-        Name::new("Header"),
-        Text(text.into()),
-        TextFont::from_font_size(40.0),
-        TextColor(HEADER_TEXT),
-    )
-}
-
-/// A simple text label.
-pub fn label(text: impl Into<String>) -> impl Bundle {
-    text_base(text.into(), Vw(3.5), ThemeColor::BODY_TEXT_LIGHT)
-}
 
 /// A large rounded button with text and an action defined as an [`Observer`].
 pub fn button<E, B, M, I>(text: impl Into<String>, action: I) -> impl Bundle
@@ -129,10 +104,10 @@ where
         (
             Node {
                 // width: Vw(30.0),
-                height: Vw(4.),
+                height: Vw(5.),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
-                padding: UiRect::horizontal(Vw(2.)),
+                padding: UiRect::horizontal(Vw(5.)),
                 ..default()
             },
             BorderRadius::all(Vw(1.)),
@@ -188,6 +163,7 @@ where
             hovered: BackgroundColor(ThemeColor::PRIMARY_HOVERED),
             pressed: BackgroundColor(ThemeColor::PRIMARY_PRESSED),
             disabled: BackgroundColor(ThemeColor::PRIMARY_DISABLED),
+            ..default()
         },
         children![(
             text_base(text, font_size, ThemeColor::PRIMARY_TEXT),
@@ -239,6 +215,40 @@ where
             (button_small("<", left_action), InteractionDisabled(false)),
             stretch(children![label("")]),
             (button_small(">", right_action), InteractionDisabled(false))
+        ],
+    )
+}
+
+pub fn card_display(content: impl Bundle, actions: impl Bundle) -> impl Bundle {
+    (
+        Node {
+            width: Vw(50.),
+            height: Vw(30.),
+            padding: UiRect::all(Vw(3.)),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::SpaceEvenly,
+            ..default()
+        },
+        BackgroundColor(Color::WHITE),
+        BorderRadius::all(Vw(5.0)),
+        children![
+            (
+                Node {
+                    width: Percent(100.),
+                    flex_grow: 1.,
+                    ..default()
+                },
+                content
+            ),
+            (
+                Node {
+                    width: Percent(100.),
+                    // height: Percent(20.),
+                    justify_content: JustifyContent::End,
+                    ..default()
+                },
+                actions,
+            )
         ],
     )
 }
