@@ -108,8 +108,10 @@ fn send_message_to_server(
     mut client: ResMut<RenetClient>,
     bincode_config: Res<BincodeConfig>,
 ) {
-    info!("receive message");
     let message = trigger.event();
+
+    info!("send event to server {}", message.0);
+
     if let Ok(byte) = encode_to_vec(&message.0, bincode_config.0) {
         client.send_message(0, byte);
     } else {

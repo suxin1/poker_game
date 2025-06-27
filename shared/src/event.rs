@@ -51,4 +51,5 @@ pub enum GameEvent {
     Blocking(usize),
 
     PlayCards(usize, Vec<Card>),
+    Pass(usize),
 }

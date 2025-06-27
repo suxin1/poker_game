@@ -126,8 +126,8 @@ pub(crate) struct CardAssets {
 }
 
 impl CardAssets {
-    pub fn get_card_img(&self, card: Card) -> Handle<Image> {
-        match (card.value, card.suit) {
+    pub fn get_card_img(&self, card: &Card) -> Handle<Image> {
+        match (&card.value, &card.suit) {
             (CardValue::Ace, Suit::Spades) => self.SA.clone(),
             (CardValue::Ace, Suit::Hearts) => self.HA.clone(),
             (CardValue::Ace, Suit::Diamonds) => self.DA.clone(),

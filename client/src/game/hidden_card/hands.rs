@@ -34,6 +34,8 @@ pub(super) fn plugin(app: &mut App) {
 
     // 已选择牌组
     app.init_resource::<SelectedCards>();
+    // 移除已经成功出的牌
+    app.add_observer(remove_selected_cards);
 }
 
 fn handle_update_hands_event(
@@ -74,6 +76,19 @@ struct RenderLocalHandsWithAnime(Vec<Card>);
 #[derive(Event)]
 struct RenderLocalHandsImmediately(Vec<Card>);
 
+pub fn hands_view(children: impl Bundle) -> impl Bundle {
+    (
+        Node {
+            width: Val::Vw(80.),
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(16.),
+            ..default()
+        },
+        HandsRow,
+        children,
+    )
+}
+
 fn render_hands_with_animation(
     trigger: Trigger<RenderLocalHandsWithAnime>,
     mut card_dealer: ResMut<CardDealerMachine>,
@@ -95,7 +110,7 @@ fn render_hands_immediately(
         cmds.entity(entity).with_children(|parent| {
             parent.spawn(card_view(
                 card.clone(),
-                card_assets.get_card_img(card.clone()),
+                card_assets.get_card_img(card),
                 on_card_click,
             ));
         });
@@ -139,7 +154,7 @@ fn card_dealer_system(
                 cmds.entity(entity).with_children(|parent| {
                     parent.spawn(card_view(
                         card.clone(),
-                        card_assets.get_card_img(card.clone()),
+                        card_assets.get_card_img(&card),
                         on_card_click,
                     ));
                 });
@@ -167,7 +182,7 @@ fn card_dealer_system(
 pub struct SelectedCards(pub Vec<Entity>);
 
 #[derive(Event)]
-pub struct RemoveCards(Vec<Card>);
+pub struct RemoveCardsFromHands(pub Vec<Card>);
 
 fn on_card_click(
     mut trigger: Trigger<Pointer<Click>>,
@@ -186,8 +201,8 @@ fn on_card_click(
 }
 
 fn remove_selected_cards(
+    trigger: Trigger<RemoveCardsFromHands>,
     mut cmds: Commands,
-    trigger: Trigger<RemoveCards>,
     mut hands_query: Query<(Entity, &mut Children), With<HandsRow>>,
     card_data_query: Query<&CardData>,
 ) {
@@ -202,17 +217,4 @@ fn remove_selected_cards(
             }
         }
     }
-}
-
-pub fn hands_view(children: impl Bundle) -> impl Bundle {
-    (
-        Node {
-            width: Val::Vw(80.),
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(16.),
-            ..default()
-        },
-        HandsRow,
-        children,
-    )
 }

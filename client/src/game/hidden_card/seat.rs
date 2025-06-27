@@ -148,9 +148,10 @@ fn handle_seat_update_event(
                     cmds.trigger(RunSeatUpdate);
                     // event_writer.write(LocalGameEvent::RunSeatUpdate);
                 }
-            },
+            }
             GameEvent::Ready { client_id: _ }
             | GameEvent::PlayCards(_, _)
+            | GameEvent::Pass(_)
             | GameEvent::Blocking(_)
             | GameEvent::CallCard {
                 seat_index: _,
@@ -159,7 +160,7 @@ fn handle_seat_update_event(
                 if *is_seat_position_map_available {
                     cmds.trigger(RunSeatUpdate);
                 }
-            },
+            }
             GameEvent::SyncState(_) => {
                 let local_index = c!(state.get_player_seat_index_by_id(local_player.id));
                 let seat_map = get_position_relative_to_local(local_index);
@@ -170,8 +171,8 @@ fn handle_seat_update_event(
                 if *is_seat_position_map_available {
                     cmds.trigger(RunSeatUpdate);
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 }

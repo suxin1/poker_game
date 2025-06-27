@@ -436,6 +436,20 @@ impl GameState {
         }
     }
 
+    pub fn can_play_cards(&self, cards: &Vec<Card>) -> Result<Combination, String> {
+        let combo = Combination::analyze(cards.clone());
+        if combo == Combination::Invalid {
+            return Err("无效牌型".to_string());
+        }
+        if let Some(ref last_combo) = self.last_played_cards {
+            if !combo.gt(last_combo) {
+                return Err("牌型太弱".to_string());
+            }
+        }
+        Ok(combo)
+    }
+
+
     pub fn play_cards(
         &mut self,
         player_set_index: PlayerSetIndex,
@@ -468,7 +482,7 @@ impl GameState {
         Ok(())
     }
 
-    fn pass(&mut self) {
+    pub fn pass(&mut self) {
         self.next_player();
         if let (Some(current), Some(last_played)) =
             (self.current_player_seat, self.last_played_set_index)

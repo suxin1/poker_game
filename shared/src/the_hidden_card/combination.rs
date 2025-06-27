@@ -36,6 +36,18 @@ pub enum Combination {
 }
 
 impl Combination {
+    pub fn to_vec_cards(&self) -> Vec<Card>{
+        match self {
+            Combination::Single(card) => vec![card.clone()],
+            Combination::Pair(cards) => cards.to_vec(),
+            Combination::Straight(cards) => cards.clone(),
+            Combination::ThreeOfAKind(cards) => cards.to_vec(),
+            Combination::ThreeStraitPair(cards) => cards.to_vec(),
+            Combination::FourOfAKind(cards) => cards.to_vec(),
+            Combination::Invalid => vec![],
+        }
+    }
+
     pub fn is_boom(&self) -> bool {
         matches!(
             self,
@@ -78,7 +90,8 @@ impl Combination {
 
     pub fn analyze(cards: Vec<Card>) -> Combination {
         // TODO 性能优化, 使用引用
-        let analyzer = HandAnalyzer::from_cards(cards);
+        let mut analyzer = HandAnalyzer::from_cards(cards);
+        analyzer.sort();
         analyzer.analyze()
     }
 }
@@ -100,6 +113,10 @@ impl HandAnalyzer {
         cards.sort_by(|a, b| a.value.int().cmp(&b.value.int()));
         self.0 = cards;
         self
+    }
+
+    pub fn sort(&mut self) {
+        self.0.sort_by(|a, b| a.value.int().cmp(&b.value.int()));
     }
 
     pub fn analyze(&self) -> Combination {

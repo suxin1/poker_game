@@ -1,4 +1,3 @@
-use bevy::input::keyboard::Key::Close;
 use bevy_renet2::prelude::RenetClient;
 
 use crate::game::widget::prelude::*;
@@ -7,14 +6,14 @@ use crate::screens::ScreenState;
 use crate::theme::widget::button_mid;
 
 use crate::game::assets::CardAssets;
-use crate::game::hidden_card::hands::{HandsRow, SelectedCards};
-use shared::cards::Card;
-use shared::event::GameEvent;
-use shared::the_hidden_card::state::GameState;
-use shared::{Player, Reducer, the_hidden_card::state::Stage};
-use shared::the_hidden_card::prelude::Combination;
+use crate::game::hidden_card::hands::{HandsRow, RemoveCardsFromHands, SelectedCards};
 use crate::network::MessageEvent;
 use crate::theme::interaction::InteractionSelected;
+use shared::cards::Card;
+use shared::event::GameEvent;
+use shared::the_hidden_card::prelude::Combination;
+use shared::the_hidden_card::state::GameState;
+use shared::{Player, Reducer, the_hidden_card::state::Stage};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -36,13 +35,6 @@ pub(super) fn plugin(app: &mut App) {
     app.add_observer(show_call_card_popup);
 
     app.add_observer(show_play_card_popup);
-    // .add_observer(on_ready_botton_click);
-    // .add_systems(
-    //     Update,
-    //     on_receive_ready_from_server
-    //         .in_set(AppSystems::Update)
-    //         .run_if(in_state(ScreenState::Gameplay)),
-    // );
 }
 
 fn state_stage_control(
@@ -62,13 +54,12 @@ fn state_stage_control(
             //     *is_call_card_event_send = false;
             //     *is_play_card_popup_showed = false;
             // },
-            GameEvent::PlayCards(index, _) => {
+            GameEvent::PlayCards(index, _) | GameEvent::Pass(index) => {
                 // 出牌后重置弹窗状态，准备下一次出牌
-                let seat_index = c!(game_state.get_player_seat_index_by_id(local_player.id));
-                if seat_index == *index {
+                if game_state.id_match_seat_index(local_player.id, *index) {
                     *is_play_card_popup_showed = false;
                 }
-            }
+            },
             _ => {},
         }
     }
@@ -129,11 +120,17 @@ fn handle_event_from_server(
                 // 叫牌或抢牌后关闭弹窗
                 cmds.trigger(ClosePopupEvent);
             },
-            GameEvent::PlayCards(index, _) => {
+            GameEvent::PlayCards(index, cards) => {
+                if state.id_match_seat_index(local_player.id, *index) {
+                    cmds.trigger(ClosePopupEvent);
+                    cmds.trigger(RemoveCardsFromHands(cards.clone()));
+                }
+            },
+            GameEvent::Pass(index) => {
                 if state.id_match_seat_index(local_player.id, *index) {
                     cmds.trigger(ClosePopupEvent);
                 }
-            }
+            },
             _ => {},
         }
     }
@@ -201,7 +198,7 @@ fn show_call_card_popup(
                         for card in cards.iter() {
                             parent.spawn(card_view(
                                 card.clone(),
-                                card_assets.get_card_img(card.clone()),
+                                card_assets.get_card_img(card),
                                 on_call_card_click,
                             ));
                         }
@@ -266,6 +263,8 @@ fn show_play_card_popup(
             parent
                 .spawn((Node {
                     flex_direction: FlexDirection::Row,
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Vw(13.),
                     column_gap: Val::Vw(1.0),
                     ..default()
                 },))
@@ -279,8 +278,14 @@ fn show_play_card_popup(
     });
 }
 
-fn on_pass_button_click(trigger: Trigger<Pointer<Click>>, mut cmds: Commands) {
-    cmds.trigger(ClosePopupEvent);
+fn on_pass_button_click(
+    _: Trigger<Pointer<Click>>,
+    mut cmds: Commands,
+    local_player: Res<Player>,
+    state: Res<GameState>,
+) {
+    let index = r!(state.get_player_seat_index_by_id(local_player.id));
+    cmds.trigger(MessageEvent(GameEvent::Pass(index)));
 }
 
 fn on_play_cards_button_click(
@@ -289,7 +294,7 @@ fn on_play_cards_button_click(
     hands_query: Query<&Children, With<HandsRow>>,
     card_data_query: Query<(&CardData, &InteractionSelected)>,
     state: Res<GameState>,
-    local_player: Res<Player>
+    local_player: Res<Player>,
 ) {
     let children = r!(hands_query.single());
     let mut cards = Vec::new();
@@ -300,9 +305,11 @@ fn on_play_cards_button_click(
         }
     }
     let combination = Combination::analyze(cards.clone());
+
     if matches!(combination, Combination::Invalid) {
         return;
     }
     let index = r!(state.get_player_seat_index_by_id(local_player.id));
+
     cmds.trigger(MessageEvent(GameEvent::PlayCards(index, cards)));
 }
