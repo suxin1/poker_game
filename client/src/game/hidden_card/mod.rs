@@ -4,13 +4,13 @@ mod state;
 
 mod game_event;
 mod hands;
-mod player;
+mod seat;
 mod stage;
 
 pub fn plugin(app: &mut App) {
     app.add_plugins((
         state::plugin,
-        player::plugin,
+        seat::plugin,
         stage::plugin,
         hands::plugin, // 本地玩家手牌控制
     ));

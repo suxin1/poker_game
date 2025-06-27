@@ -1,3 +1,4 @@
+use std::env;
 use fake::Fake;
 use crate::prelude::*;
 
@@ -19,7 +20,9 @@ pub(super) fn plugin(app: &mut App) {
     use web_time::SystemTime;
 
     let args = std::env::args().collect::<Vec<String>>();
-    let s = &args[1];
+    let s = if args.len() > 1 {&args[1]} else {
+        &env::var("TEST_ID").unwrap()
+    };
     let client_id = s.parse::<u64>().unwrap();
 
     // let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();

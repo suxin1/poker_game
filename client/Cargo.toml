@@ -17,7 +17,6 @@ bevy = { version = "0.16", default-features = false, features = [
     # Extra features
     "async_executor",
     #"custom_cursor",
-    "default_font",
     "multi_threaded",
     "tonemapping_luts",
 
@@ -49,7 +48,6 @@ serde = "1"
 tiny_bail = "0.4"
 variadics_please = "1.1"
 anyhow = "1.0.98"
-fake = {version = "3.1", optional = true}
 strum_macros = "0.27"
 
 # Network
@@ -61,7 +59,6 @@ bincode = { version = "2.0.1", features = ["serde"] }
 
 url = "2.5.4"
 bevy_http_client = "0.8"
-web-time = "1.1.0"
 
 # Compile low-severity logs out of native builds for performance.
 log = { version = "0.4", features = [
@@ -74,12 +71,16 @@ tracing = { version = "0.1", features = [
     "release_max_level_warn",
 ] }
 
+# Dev tools
+bevy-inspector-egui = { version = "0.31", optional = true, default-features = false, features = ["bevy_render"]}
+fake = {version = "3.1", optional = true}
+
 # Your web builds will start failing if you add a dependency that pulls in `getrandom` v0.3+.
 # To fix this, you should tell `getrandom` to use the `wasm_js` backend on Wasm.
 # See: <https://docs.rs/getrandom/0.3.3/getrandom/#webassembly-support>.
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.3", features = ["wasm_js"] }
-
+web-time = "1.1.0"
 # In addition to enabling the `wasm_js` feature, you need to include `--cfg 'getrandom_backend="wasm_js"'`
 # in your rustflags for both local and CI/CD web builds, taking into account that rustflags specified in
 # multiple places are NOT combined (see <https://github.com/rust-lang/cargo/issues/5376>).
@@ -90,7 +91,7 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [features]
 # Default to a native dev build.
-default = ["dev", "dev_native"]
+default = ["dev_native"]
 web = [
     "bevy/dynamic_linking",
     "bevy/bevy_dev_tools",
@@ -100,12 +101,13 @@ web = [
 ]
 dev = [
     # Improve compile times for dev builds by linking Bevy as a dynamic library.
-    "bevy/dynamic_linking",
+#    "bevy/dynamic_linking",
     "bevy/bevy_dev_tools",
     "bevy/bevy_ui_debug",
     # Improve error messages coming from Bevy
     "bevy/track_location",
-    "fake"
+    "fake",
+    "dep:bevy-inspector-egui"
 ]
 
 dev_native = [

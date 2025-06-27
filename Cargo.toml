@@ -14,7 +14,7 @@ members = [
 [patch.crates-io]
 #bevy_asset_loader = { git = "https://github.com/benfrankel/bevy_asset_loader.git", branch = "direct-depend" }
 #iyes_progress = { git = "https://github.com/benfrankel/iyes_progress.git", branch = "bevy-0-16" }
-bevy_editor_pls = { git = "https://github.com/benfrankel/bevy_editor_pls.git", branch = "bevy-0-16" }
+#bevy_editor_pls = { git = "https://github.com/benfrankel/bevy_editor_pls.git", branch = "bevy-0-16" }
 
 renet2 = { git = "https://github.com/suxin1/renet2.git", rev = "fde66f5a" }
 renet2_netcode = { git = "https://github.com/suxin1/renet2.git", rev = "fde66f5a"}

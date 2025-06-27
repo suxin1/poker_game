@@ -43,6 +43,10 @@ where
             ..default()
         },
         CardData(card),
+        Pickable {
+            should_block_lower: true,
+            is_hoverable: true,
+        },
         Patch(|entity| {
             entity.observe(action);
         })

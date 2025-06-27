@@ -2,16 +2,13 @@ use crate::game::hidden_card::level::{LevelUiRoot, spawn_level};
 pub use crate::game::widget::prelude::*;
 use crate::prelude::*;
 use crate::screens::ScreenState;
-use bevy::reflect::Array;
 use shared::Player;
 use shared::event::GameEvent;
 use shared::the_hidden_card::state::GameState;
 use std::f32::consts::PI;
-use url::Position;
 
 use crate::animation::ui_sprite_animation::{AnimationIndices, AnimationTimer};
 use crate::game::assets::IndicatorAsset;
-use crate::game::hidden_card::game_event::LocalGameEvent;
 use crate::theme::palette::ThemeColor;
 use strum_macros::Display;
 
@@ -44,115 +41,79 @@ fn setup_seat_view(
     // Use only the subset of sprites in the sheet that make up the run animation
     let animation_indices = AnimationIndices { first: 0, last: 4 };
 
+    // 2. 定义座位配置数据
+    let seat_configs = [
+        (
+            SeatPosition::Bottom,
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(-32.),
+                ..default()
+            },
+            Quat::from_rotation_z(-PI),
+            SEAT_COLOR[0],
+        ),
+        (
+            SeatPosition::Right,
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(-32.),
+                ..default()
+            },
+            Quat::from_rotation_z(-PI),
+            SEAT_COLOR[1],
+        ),
+        (
+            SeatPosition::Top,
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(-32.),
+                ..default()
+            },
+            Quat::IDENTITY, // 无旋转
+            SEAT_COLOR[2],
+        ),
+        (
+            SeatPosition::Left,
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(-32.),
+                ..default()
+            },
+            Quat::from_rotation_z(-PI),
+            SEAT_COLOR[3],
+        ),
+    ];
+
     cmds.entity(ui_root).with_children(|parent| {
-        parent.spawn((
-            Name::new("Game UI root"),
-            Node::COLUMN_CENTER.full_size(),
-            Pickable::IGNORE,
-            LevelUiRoot,
-            StateScoped(ScreenState::Gameplay),
-            children![
-                seat_view(
-                    SeatPosition::Bottom.get_layout(),
-                    SeatPosition::Bottom,
-                    children![(
-                        Node {
-                            position_type: PositionType::Absolute,
-                            top: Val::Px(-32.),
-                            ..default()
-                        },
-                        (
-                            ImageNode::from_atlas_image(
+        parent
+            .spawn((
+                Name::new("Seat UI root"),
+                Node::COLUMN_CENTER.full_size(),
+                Pickable::IGNORE,
+                LevelUiRoot,
+                StateScoped(ScreenState::Gameplay),
+            ))
+            .with_children(|parent| {
+                for (position, arrow_node, rotation, color) in seat_configs {
+                    parent
+                        .spawn(seat_view(
+                            position.get_layout(),
+                            position,
+                            color,
+                            seat_click,
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn(create_arrow_component(
+                                arrow_node,
                                 texture.clone(),
-                                TextureAtlas {
-                                    layout: texture_atlas_layout.clone(),
-                                    index: animation_indices.first.clone()
-                                }
-                            ),
-                            animation_indices.clone(),
-                            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-                            Transform::from_rotation(Quat::from_rotation_z(-PI))
-                        ),
-                    )],
-                    SEAT_COLOR[4],
-                    seat_click
-                ),
-                seat_view(
-                    SeatPosition::Right.get_layout(),
-                    SeatPosition::Right,
-                    children![(
-                        Node {
-                            position_type: PositionType::Absolute,
-                            top: Val::Px(-32.),
-                            ..default()
-                        },
-                        (
-                            ImageNode::from_atlas_image(
-                                texture.clone(),
-                                TextureAtlas {
-                                    layout: texture_atlas_layout.clone(),
-                                    index: animation_indices.first.clone()
-                                }
-                            ),
-                            animation_indices.clone(),
-                            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-                            Transform::from_rotation(Quat::from_rotation_z(-PI))
-                        ),
-                    )],
-                    SEAT_COLOR[4],
-                    seat_click
-                ),
-                seat_view(
-                    SeatPosition::Top.get_layout(),
-                    SeatPosition::Top,
-                    children![(
-                        Node {
-                            position_type: PositionType::Absolute,
-                            bottom: Val::Px(-32.),
-                            ..default()
-                        },
-                        (
-                            ImageNode::from_atlas_image(
-                                texture.clone(),
-                                TextureAtlas {
-                                    layout: texture_atlas_layout.clone(),
-                                    index: animation_indices.first.clone()
-                                }
-                            ),
-                            animation_indices.clone(),
-                            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-                        ),
-                    )],
-                    SEAT_COLOR[4],
-                    seat_click
-                ),
-                seat_view(
-                    SeatPosition::Left.get_layout(),
-                    SeatPosition::Left,
-                    children![(
-                        Node {
-                            position_type: PositionType::Absolute,
-                            top: Val::Px(-32.),
-                            ..default()
-                        },
-                        (
-                            ImageNode::from_atlas_image(
-                                texture.clone(),
-                                TextureAtlas {
-                                    layout: texture_atlas_layout.clone(),
-                                    index: animation_indices.first.clone()
-                                }
-                            ),
-                            animation_indices.clone(),
-                            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-                            Transform::from_rotation(Quat::from_rotation_z(-PI))
-                        ),
-                    )],
-                    SEAT_COLOR[4],
-                    seat_click
-                ),
-            ],
-        ));
+                                texture_atlas_layout.clone(),
+                                animation_indices.clone(),
+                                rotation,
+                            ));
+                        });
+                }
+            });
     });
 }
 
@@ -188,7 +149,13 @@ fn handle_seat_update_event(
                     // event_writer.write(LocalGameEvent::RunSeatUpdate);
                 }
             },
-            GameEvent::Ready { client_id } => {
+            GameEvent::Ready { client_id: _ }
+            | GameEvent::PlayCards(_, _)
+            | GameEvent::Blocking(_)
+            | GameEvent::CallCard {
+                seat_index: _,
+                card: _,
+            } => {
                 if *is_seat_position_map_available {
                     cmds.trigger(RunSeatUpdate);
                 }
@@ -212,13 +179,13 @@ fn handle_seat_update_event(
 fn update_player_seat(
     _: Trigger<RunSeatUpdate>,
     mut seats_query: Query<(Entity, &Children, &SeatPosition), With<SeatPosition>>,
-    mut player_avatar: Query<Entity, With<PlayerAvatarBox>>,
+    mut player_avatar_query: Query<Entity, With<PlayerAvatarBox>>,
+    mut indicator_query: Query<&mut Visibility, With<ArrowIndicator>>,
     mut player_name_text_query: Query<&mut Text, With<PlayerNameText>>,
     mut background_query: Query<&mut BackgroundColor>,
     state: Res<GameState>,
     seat_position_map: Res<SeatPositionMap>,
 ) {
-    info!("Update seat view");
     let seats_data = state.get_seats();
     for (entity, children, seat_position) in seats_query.iter_mut() {
         let index = c!(seat_position_map.0.get(seat_position));
@@ -237,17 +204,24 @@ fn update_player_seat(
             if let Ok(mut text) = player_name_text_query.get_mut(child) {
                 **text = player_data.name.clone();
             };
-            if let Ok(entity) = player_avatar.get_mut(child) {
+            if let Ok(entity) = player_avatar_query.get_mut(child) {
                 if let Ok(mut background_color) = background_query.get_mut(entity) {
                     background_color.0 = SEAT_COLOR[index.clone()];
                 }
             };
+            if let Ok(mut indicator_visibility) = indicator_query.get_mut(child) {
+                if state.current_player_seat == Some(index.clone()) {
+                    *indicator_visibility = Visibility::Visible;
+                } else {
+                    *indicator_visibility = Visibility::Hidden;
+                }
+            }
         }
     }
 }
 
 pub fn seat_click(_: Trigger<Pointer<Click>>) {
-    println!("Clicked a card!");
+    println!("Clicked a seat!");
 }
 
 fn get_position_relative_to_local(local_index: usize) -> HashMap<SeatPosition, usize> {
@@ -271,13 +245,6 @@ const SEAT_COLOR: [Color; 5] = [
     Color::srgba(0.6, 0.4, 0.1, 1.), // 橘
     Color::srgba(0.6, 0.6, 0.6, 1.), // 橘
 ];
-
-struct ColorPlatte;
-
-impl ColorPlatte {
-    const BLUE: Color = Color::srgba(0.1, 0.1, 0.5, 1.);
-    // const READY_COLOR: Color = Color::srgba()
-}
 
 #[derive(Component, PartialEq, Eq, Hash, Display)]
 pub enum SeatPosition {

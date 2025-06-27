@@ -1,7 +1,7 @@
 //! 负责手牌的更新，以及出牌的逻辑
 
 use crate::game::assets::CardAssets;
-use crate::game::widget::prelude::card_view;
+use crate::game::widget::prelude::{card_view, CardData};
 use bevy_renet2::prelude::{ClientId, RenetClient};
 use shared::Player;
 use shared::cards::Card;
@@ -20,9 +20,10 @@ pub(super) fn plugin(app: &mut App) {
             .run_if(in_state(ScreenState::Gameplay)),
     );
 
+    // 渲染手牌
     app.add_observer(render_hands_with_animation)
         .add_observer(render_hands_immediately);
-
+    // 渲染发牌动画
     app.init_resource::<CardDealerMachine>().add_systems(
         Update,
         card_dealer_system
@@ -30,6 +31,9 @@ pub(super) fn plugin(app: &mut App) {
             .run_if(in_state(ScreenState::Gameplay))
             .run_if(resource_exists::<CardDealerMachine>),
     );
+
+    // 已选择牌组
+    app.init_resource::<SelectedCards>();
 }
 
 fn handle_update_hands_event(
@@ -43,18 +47,15 @@ fn handle_update_hands_event(
         match event {
             DealCards { client_id, cards } => {
                 if local_player.id == *client_id && matches!(game_state.stage, Stage::DealCards) {
-                    cmds.trigger(RenderLocalHands(cards.clone()));
+                    cmds.trigger(RenderLocalHandsWithAnime(cards.clone()));
                 }
             },
             SyncState(_) => {
-                info!("sync {:?}", game_state.get_seats());
                 let index = game_state.get_player_seat_index_by_id(local_player.id);
-                info!("local player index: {:?}", index);
                 let seat = game_state.get_seat_by_id(local_player.id);
 
                 if let Some(seat) = seat {
                     if !seat.hands.is_empty() {
-                        info!("-----------------: {:?}", seat);
                         cmds.trigger(RenderLocalHandsImmediately(seat.hands.clone()));
                     }
                 }
@@ -65,16 +66,16 @@ fn handle_update_hands_event(
 }
 
 #[derive(Component)]
-struct HandsRow;
+pub struct HandsRow;
 
 #[derive(Event)]
-struct RenderLocalHands(Vec<Card>);
+struct RenderLocalHandsWithAnime(Vec<Card>);
 
 #[derive(Event)]
 struct RenderLocalHandsImmediately(Vec<Card>);
 
 fn render_hands_with_animation(
-    trigger: Trigger<RenderLocalHands>,
+    trigger: Trigger<RenderLocalHandsWithAnime>,
     mut card_dealer: ResMut<CardDealerMachine>,
 ) {
     let hands = &trigger.0;
@@ -122,17 +123,18 @@ fn card_dealer_system(
     time: Res<Time>,
     card_assets: Res<CardAssets>,
     mut dealer_machine: ResMut<CardDealerMachine>,
-    mut hands_entity_query: Query<Entity, With<HandsRow>>,
+    mut hands_entity_query: Query<(Entity, &mut Children), With<HandsRow>>,
+    mut cards_data_query: Query<&CardData>,
     mut client: ResMut<RenetClient>,
     local_player: Res<Player>,
     bincode_config: Res<BincodeConfig>,
 ) {
     if dealer_machine.timer.tick(time.delta()).just_finished() {
         if let Some(mut cards) = dealer_machine.cards.take() {
+            let (entity, mut children) = r!(hands_entity_query.single_mut());
             if let Some(card) = cards.pop() {
                 dealer_machine.cards = Some(cards);
                 dealer_machine.timer.reset();
-                let entity = r!(hands_entity_query.single());
 
                 cmds.entity(entity).with_children(|parent| {
                     parent.spawn(card_view(
@@ -142,6 +144,12 @@ fn card_dealer_system(
                     ));
                 });
             } else {
+                // 卡牌排序
+                children.sort_by(|a, b| {
+                    let a = cards_data_query.get(a.clone()).unwrap();
+                    let b = cards_data_query.get(b.clone()).unwrap();
+                    b.0.cmp(&a.0)
+                });
                 dealer_machine.cards = None;
                 client.send_message(
                     0,
@@ -155,16 +163,45 @@ fn card_dealer_system(
 
 // ====================== 选牌系统 ======================
 
-#[derive(Resource)]
-struct SelectedCards(Vec<Card>);
+#[derive(Resource, Default)]
+pub struct SelectedCards(pub Vec<Entity>);
+
+#[derive(Event)]
+pub struct RemoveCards(Vec<Card>);
 
 fn on_card_click(
     mut trigger: Trigger<Pointer<Click>>,
-    mut interaction_query: Query<&mut InteractionSelected>,
+    mut interaction_query: Query<(&CardData, &mut InteractionSelected)>,
+    mut resource: ResMut<SelectedCards>,
 ) {
     let target = trigger.target();
-    let mut selected = r!(interaction_query.get_mut(target));
+    let (card, mut selected) = r!(interaction_query.get_mut(target));
     selected.0 = !selected.0;
+    if selected.0 {
+        resource.0.push(target.clone());
+    } else {
+        // remove card entity from `[SelectedCards]`
+        resource.0.retain(|c| *c != target);
+    }
+}
+
+fn remove_selected_cards(
+    mut cmds: Commands,
+    trigger: Trigger<RemoveCards>,
+    mut hands_query: Query<(Entity, &mut Children), With<HandsRow>>,
+    card_data_query: Query<&CardData>,
+) {
+    // 把将要移除的牌转换成 HashSet
+    let to_remove = trigger.event().0.iter().map(|c| c.clone()).collect::<HashSet<_>>();
+
+    let (entity, mut children) = r!(hands_query.single_mut());
+    for child in children.iter() {
+        if let Ok(card_data) = card_data_query.get(child.clone()) {
+            if to_remove.contains(&card_data.0) {
+                cmds.entity(child).despawn();
+            }
+        }
+    }
 }
 
 pub fn hands_view(children: impl Bundle) -> impl Bundle {

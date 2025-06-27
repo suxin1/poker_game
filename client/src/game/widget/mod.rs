@@ -1,11 +1,13 @@
 mod card;
-mod seat;
 mod interaction;
-
+mod seat;
 
 pub mod prelude {
     pub use super::card::*;
-    pub use super::seat::*;
+    pub use super::seat::{
+        AbsolutePosition, ArrowIndicator, PlayerAvatarBox, PlayerNameText, create_arrow_component,
+        seat_view,
+    };
 }
 
 use crate::prelude::*;

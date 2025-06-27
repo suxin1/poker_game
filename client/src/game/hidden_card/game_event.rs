@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 use bevy_renet2::prelude::{RenetClient, ServerEvent, client_connected};
 use strum_macros::Display;
-use shared::event::GameEvent;
 
 use crate::game::bincode::BincodeConfig;
+use crate::prelude::{Deserialize, Serialize};
 use crate::screens::ScreenState;
 use shared::Reducer;
+use shared::event::GameEvent;
 use shared::the_hidden_card::prelude::*;
-use crate::prelude::{Deserialize, Serialize};
 
 pub(crate) fn plugin(app: &mut App) {
     app.add_event::<LocalGameEvent>();

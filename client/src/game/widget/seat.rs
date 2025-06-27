@@ -22,10 +22,17 @@ pub struct PlayerAvatarBox;
 #[derive(Component)]
 pub struct ReadyMarker;
 
+#[derive(Component)]
+#[relationship(relationship_target = SeatLinkBy)]
+pub struct SeatLink(pub Entity);
+
+#[derive(Component, Deref)]
+#[relationship_target(relationship = SeatLink)]
+pub struct SeatLinkBy(Vec<Entity>);
+
 pub fn seat_view<E, B, M, I>(
     position: AbsolutePosition,
     marker: impl Bundle,
-    children: impl Bundle,
     color: Color,
     action: I,
 ) -> impl Bundle
@@ -35,6 +42,7 @@ where
     I: Sync + IntoObserverSystem<E, B, M>,
 {
     (
+        Name::new("Seat"),
         Node {
             width: SET_BOX_WIDTH,
             height: SET_BOX_HEIGHT,
@@ -48,6 +56,10 @@ where
             align_items: AlignItems::Center,
             padding: UiRect::all(Vw(0.5)),
             ..default()
+        },
+        Pickable {
+            should_block_lower: true,
+            is_hoverable: true,
         },
         BorderRadius::all(Vw(1.)),
         BackgroundColor(Color::WHITE),
@@ -65,19 +77,36 @@ where
             ),
             (PlayerNameText, body_text("空"),),
             (ReadyMarker),
-            (
-                Node {
-                    position_type: PositionType::Absolute,
-                    top: Px(0.),
-                    left: Px(0.),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    width: Percent(100.),
-                    height: Percent(100.),
-                    ..default()
-                },
-                children
-            )
         ],
+        Patch(|entity| {
+            entity.observe(action);
+        }),
+    )
+}
+
+#[derive(Component)]
+pub struct ArrowIndicator;
+
+pub fn create_arrow_component(
+    node_style: Node,
+    texture: Handle<Image>,
+    atlas_layout: Handle<TextureAtlasLayout>,
+    anim_indices: AnimationIndices,
+    rotation: Quat,
+) -> impl Bundle {
+    (
+        Name::new("Arrow Indicator"),
+        node_style,
+        ImageNode::from_atlas_image(
+            texture,
+            TextureAtlas {
+                layout: atlas_layout,
+                index: anim_indices.first,
+            },
+        ),
+        anim_indices,
+        ArrowIndicator,
+        Transform::from_rotation(rotation),
+        Visibility::Hidden,
     )
 }

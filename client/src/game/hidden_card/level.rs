@@ -4,7 +4,7 @@ use crate::prelude::*;
 use crate::screens::ScreenState;
 
 use crate::game::assets::CardAssets;
-use crate::game::hidden_card::player::{SeatPosition, seat_click};
+use crate::game::hidden_card::seat::{SeatPosition, seat_click};
 use crate::game::hidden_card::hands::hands_view;
 
 #[derive(Component)]

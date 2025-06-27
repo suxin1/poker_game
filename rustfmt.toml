@@ -2,9 +2,11 @@
 use_field_init_shorthand = true
 use_try_shorthand = true
 match_block_trailing_comma = true
+reorder_modules = true
+reorder_imports = true
 
 # Unstable options:
 group_imports = "StdExternalCrate"
 imports_granularity = "Item"
 imports_layout = "HorizontalVertical"
-normalize_doc_attributes = true
+normalize_doc_attraibutes = true

@@ -6,7 +6,6 @@ pub mod window;
 
 #[cfg(feature = "dev")]
 pub mod dev_tools;
-mod timer_test;
 
 use crate::prelude::*;
 use bevy::audio::AudioPlugin;
@@ -27,7 +26,6 @@ pub(super) fn plugin(app: &mut App) {
     app.add_plugins((
         PopupPlugin,
         pause::plugin,
-        timer_test::plugin,
         #[cfg(feature = "dev")]
         dev_tools::plugin,
     ));
@@ -47,6 +45,8 @@ pub enum AppSystems {
     RecordInput,
     /// Update Game State
     UpdateState,
+    /// Handle events received from server
+    HandleServerEvents,
     /// Step game logic.
     Update,
     /// Handle events emitted this frame.
@@ -64,9 +64,10 @@ impl Configure for AppSystems {
             (
                 Self::SyncEarly,
                 Self::TickTimers,
-                Self::UpdateState,
-                Self::Update,
                 Self::RecordInput,
+                Self::UpdateState,
+                Self::HandleServerEvents,
+                Self::Update,
                 Self::HandleEvents,
                 Self::ApplyCommands,
                 Self::SyncLate,

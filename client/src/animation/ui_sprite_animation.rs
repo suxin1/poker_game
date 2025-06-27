@@ -4,6 +4,10 @@ use crate::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(Update, animate_sprite);
+    app.insert_resource(AnimationTimer(Timer::from_seconds(
+        0.1,
+        TimerMode::Repeating,
+    )));
 }
 
 #[derive(Component, Clone)]
@@ -12,17 +16,19 @@ pub struct AnimationIndices {
     pub last: usize,
 }
 
-#[derive(Component, Deref, DerefMut)]
+#[derive(Resource, Deref, DerefMut)]
 pub struct AnimationTimer(pub Timer);
 
 fn animate_sprite(
     time: Res<Time>,
-    mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut ImageNode)>,
+    mut animation_timer: ResMut<AnimationTimer>,
+    mut query: Query<(&AnimationIndices, &mut ImageNode)>,
 ) {
-    for (indices, mut timer, mut sprite) in &mut query {
-        timer.tick(time.delta());
+    let timer = &mut animation_timer.0;
+    timer.tick(time.delta());
 
-        if timer.just_finished() {
+    if timer.just_finished() {
+        for (indices, mut sprite) in &mut query {
             if let Some(atlas) = &mut sprite.texture_atlas {
                 atlas.index = if atlas.index == indices.last {
                     indices.first

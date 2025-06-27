@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use std::ops::Deref;
-use web_time::SystemTime;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::network::native::create_renet_client;

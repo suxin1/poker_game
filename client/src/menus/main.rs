@@ -113,6 +113,7 @@ fn open_popup(_: Trigger<Pointer<Click>>, mut cmds: Commands) {
                 ],
             ));
         }),
+        blocking: true,
     });
 }
 

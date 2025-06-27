@@ -12,13 +12,12 @@ type PlayerSetIndex = usize;
 type CalleeSetIndex = usize;
 type CallerIndex = usize;
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PlayerSeat {
     pub player: Option<Player>,
     pub hands: Vec<Card>,
     coins: i32,      // 金币
-    score: i32, // 分数
+    score: i32,      // 分数
     pub ready: bool, // 准备状态
     pub hands_ready: bool,
     pub player_connected: bool,
@@ -124,14 +123,18 @@ pub enum Stage {
     PreGame,                  // 等带玩家入座
     DealCards,                // 发牌
     CallCard(PlayerSetIndex), // 叫牌
-    InGame,                   // 游戏进行中
+    PlayCards,                // 出牌
     Ended,                    // 游戏结束
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum GameMode {
-    HiddenAllies((CallerIndex, CalleeSetIndex, Card)), // 暗叫组队
-    OneVsThree(PlayerSetIndex),                        // 包牌
+    HiddenAllies {
+        caller: usize,
+        callee: usize,
+        card: Card,
+    }, // 暗叫组队
+    OneVsThree(PlayerSetIndex), // 包牌
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -143,17 +146,16 @@ pub struct GameState {
     pub mode: Option<GameMode>,
     pub stage: Stage,
 
-    lead: Option<PlayerSetIndex>,               // 第一个出牌的人
-    the_hidden: Option<PlayerSetIndex>,         // 隐藏队友
-    current_player_set: Option<PlayerSetIndex>, // 当前出牌
-    is_hidden_card_shown: bool,
+    lead: Option<usize>,                   // 第一个出牌的人
+    the_hidden: Option<usize>,             // 隐藏队友
+    pub current_player_seat: Option<usize>, // 当前出牌
+    pub is_hidden_card_shown: bool,
 
-    last_played_set_index: Option<PlayerSetIndex>,
-    last_played_cards: Option<Combination>,
+    pub last_played_set_index: Option<usize>,
+    pub last_played_cards: Option<Combination>,
     table_score_counter: i32,
 
-    finished_order: VecDeque<PlayerSetIndex>,
-
+    finished_order: VecDeque<usize>,
     // history: Vec<GameEvent>,
 }
 
@@ -170,13 +172,12 @@ impl Default for GameState {
 
             lead: None,
             the_hidden: None,
-            current_player_set: None,
+            current_player_seat: None,
             last_played_cards: None,
             last_played_set_index: None,
             is_hidden_card_shown: false,
             table_score_counter: 0,
             finished_order: VecDeque::new(),
-
             // history: Vec::new(),
         }
     }
@@ -190,7 +191,6 @@ impl GameState {
     pub fn set_state_by_state(&mut self, state: &GameState) {
         *self = state.clone();
     }
-
 
     pub fn get_seat_mut_by_id(&mut self, player_id: ClientId) -> Option<&mut PlayerSeat> {
         self.seats
@@ -208,7 +208,7 @@ impl GameState {
     // }
 
     fn get_active_set(&self) -> Option<PlayerSeat> {
-        if let Some(index) = self.current_player_set {
+        if let Some(index) = self.current_player_seat {
             Some(self.seats[index].clone())
         } else {
             None
@@ -229,7 +229,7 @@ impl GameState {
             .filter(|seat| seat.player.as_ref().map(|p| p.id) == Some(player_id))
             .next()
     }
-    
+
     pub fn get_player_seat_index(&self, player: Player) -> Option<usize> {
         self.seats
             .iter()
@@ -249,6 +249,13 @@ impl GameState {
             }
         }
         None
+    }
+
+    pub fn id_match_seat_index(&self, id: ClientId, index: usize) -> bool {
+        if let Some(player) = &self.seats[index].player {
+            return id == player.id;
+        }
+        false
     }
 
     pub fn set_seat_to_ready(&mut self, seat_index: usize) {
@@ -288,7 +295,7 @@ impl GameState {
     }
 
     fn next_player(&mut self) {
-        self.current_player_set = match self.current_player_set {
+        self.current_player_seat = match self.current_player_seat {
             Some(current) => Some((current + 1) % 4), // 循环递增
             None => Some(0), // 如果当前无玩家，从0开始, 正常情况下不会匹配到这里
         };
@@ -316,7 +323,7 @@ impl GameState {
         self.seats.iter_mut().for_each(|set| set.reset());
         self.lead = None;
         self.the_hidden = None;
-        self.current_player_set = None;
+        self.current_player_seat = None;
         self.last_played_cards = None;
         self.last_played_set_index = None;
         self.is_hidden_card_shown = false;
@@ -325,7 +332,6 @@ impl GameState {
         self.mode = None;
         self.stage = Stage::PreGame;
     }
-
 
     /// 第一步：准备游戏，Stage::[PreGame, EndGame] 状态下可执行，执行后游戏进入发牌状态 Stage::DealCards
     /// 当所有玩家准备好后执行开始游戏
@@ -397,16 +403,16 @@ impl GameState {
             return;
         }
         self.mode = Some(GameMode::OneVsThree(player_set_index));
-        self.current_player_set = Some(player_set_index);
+        self.current_player_seat = Some(player_set_index);
 
         // self.first = Some(player_set_index);
-        self.stage = Stage::InGame;
+        self.stage = Stage::PlayCards;
     }
 
     /// 第三步：当前状态：Stage::CallCard(caller_index) 执行后进入下一个状态：Stage::InGame
     /// 设置游戏模式为 GameMode::HiddenAllies((caller_index, callee_index, call_card))
     /// 玩家叫牌后开始
-    pub fn call_card_start(&mut self, caller_index: CallerIndex, call_card: Card) {
+    pub fn call_card_start(&mut self, caller_index: usize, call_card: Card) {
         if !matches!(self.stage, Stage::CallCard(_)) {
             return;
         }
@@ -417,20 +423,20 @@ impl GameState {
             .position(|set| set.hands.iter().any(|card| *card == call_card));
 
         if let Some(callee_index) = callee_index {
-            self.mode = Some(GameMode::HiddenAllies((
-                caller_index,
-                callee_index,
-                call_card,
-            )));
-            self.stage = Stage::InGame;
-            self.current_player_set = Some(caller_index);
+            self.mode = Some(GameMode::HiddenAllies {
+                caller: caller_index,
+                callee: callee_index,
+                card: call_card,
+            });
+            self.stage = Stage::PlayCards;
+            self.current_player_seat = Some(caller_index);
         } else {
             self.mode = None;
             self.stage = Stage::Ended;
         }
     }
 
-    fn play_card(
+    pub fn play_cards(
         &mut self,
         player_set_index: PlayerSetIndex,
         cards: Vec<Card>,
@@ -465,7 +471,7 @@ impl GameState {
     fn pass(&mut self) {
         self.next_player();
         if let (Some(current), Some(last_played)) =
-            (self.current_player_set, self.last_played_set_index)
+            (self.current_player_seat, self.last_played_set_index)
         {
             if current == last_played {
                 let player_set = self.seats.get_mut(current).unwrap();
@@ -519,7 +525,7 @@ mod tests {
         assert!(state.mode.is_none());
         assert!(state.lead.is_none());
         assert!(state.the_hidden.is_none());
-        assert!(state.current_player_set.is_none());
+        assert!(state.current_player_seat.is_none());
     }
 
     #[test]
@@ -580,8 +586,8 @@ mod tests {
             _ => panic!("Wrong game mode"),
         }
 
-        assert_eq!(state.stage, Stage::InGame);
-        assert_eq!(state.current_player_set, Some(blocker_index));
+        assert_eq!(state.stage, Stage::PlayCards);
+        assert_eq!(state.current_player_seat, Some(blocker_index));
     }
 
     #[test]
@@ -602,19 +608,23 @@ mod tests {
 
         // 验证游戏模式
         match state.mode {
-            Some(GameMode::HiddenAllies((caller, callee, card))) => {
+            Some(GameMode::HiddenAllies {
+                caller,
+                callee,
+                card,
+            }) => {
                 assert_eq!(caller, caller_index);
                 assert_eq!(card, call_card.clone());
             },
             _ => panic!("Wrong game mode"),
         }
-        assert_eq!(state.stage, Stage::InGame);
+        assert_eq!(state.stage, Stage::PlayCards);
     }
 
     #[test]
     fn test_play_card_validation() {
         let mut state = GameState::default();
-        state.stage = Stage::InGame; // 设置为游戏中
+        state.stage = Stage::PlayCards; // 设置为游戏中
 
         // 构造合法牌型
         let valid_cards = vec![
@@ -629,8 +639,8 @@ mod tests {
         ];
 
         // 验证出牌
-        assert!(state.play_card(0, valid_cards).is_ok());
-        assert!(state.play_card(0, invalid_cards).is_err());
+        assert!(state.play_cards(0, valid_cards).is_ok());
+        assert!(state.play_cards(0, invalid_cards).is_err());
     }
 
     #[test]

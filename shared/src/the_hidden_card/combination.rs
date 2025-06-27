@@ -77,7 +77,7 @@ impl Combination {
     }
 
     pub fn analyze(cards: Vec<Card>) -> Combination {
-        // TODO 性能优化
+        // TODO 性能优化, 使用引用
         let analyzer = HandAnalyzer::from_cards(cards);
         analyzer.analyze()
     }

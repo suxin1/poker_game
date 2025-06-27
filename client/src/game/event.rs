@@ -34,7 +34,7 @@ fn receive_event_from_server(
     mut cmds: Commands,
     mut finished: Local<bool>,
     mut client: ResMut<RenetClient>,
-    mut game_events: EventWriter<GameEvent>,
+    mut game_event_writer: EventWriter<GameEvent>,
     mut bincode_config: Res<BincodeConfig>,
     mut next_screen: ResMut<NextState<ScreenState>>,
 ) {
@@ -49,11 +49,11 @@ fn receive_event_from_server(
                 *finished = true;
                 // 收到加入房间成功事件，进入游戏屏
                 next_screen.set(ScreenState::Gameplay);
-                game_events.write(event);
+                game_event_writer.write(event);
             },
             ReJoinRoomOk { room_id } => {
                 next_screen.set(ScreenState::Gameplay);
-                game_events.write(event);
+                game_event_writer.write(event);
                 // 关闭询问是否重新加入房间的弹窗
                 cmds.trigger(ClosePopupEvent);
             },
@@ -67,9 +67,10 @@ fn receive_event_from_server(
                         ],
                     ));
                 }),
+                blocking: true
             }),
             _ => {
-                game_events.write(event);
+                game_event_writer.write(event);
             },
         }
     }

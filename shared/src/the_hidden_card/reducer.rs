@@ -39,6 +39,9 @@ impl Reducer<GameEvent, GameError> for  GameState {
             Blocking(index) => {
                 self.blocking_start(index.clone());
             }
+            PlayCards(seat_index, cards) => {
+                self.play_cards(seat_index.clone(), cards.clone());
+            }
             PlayerDisconnected(client_id) => {
                 let seat = r!(self.get_seat_mut_by_id(client_id.clone()));
                 seat.player_connected = false;
@@ -102,8 +105,12 @@ impl Reducer<GameEvent, GameError> for  GameState {
             CallCard {seat_index, card} => {
                 self.stage == Stage::CallCard(seat_index.clone())
             }
+            PlayCards(seat_index, cards) => {
+                matches!(self.stage, Stage::PlayCards) && Some(seat_index.clone()) == self.current_player_seat
+            }
             PlayerDisconnected(_) => true,
             SyncState(_) => true,
+
             _ => {
                 error!(target: "Game state", "Not implement {}", event);
                 false
