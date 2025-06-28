@@ -4,7 +4,7 @@ use crate::prelude::*;
 use crate::screens::ScreenState;
 
 use crate::game::assets::CardAssets;
-use crate::game::hidden_card::table::table_hands;
+use crate::game::hidden_card::table::table;
 use crate::game::hidden_card::seat::{SeatPosition, seat_click};
 use crate::game::hidden_card::hands::hands_view;
 
@@ -18,15 +18,15 @@ pub fn spawn_level(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands.spawn((
-        Name::new("Game UI root"),
+        Name::new("Game UI root 1"),
         Node::COLUMN_CENTER.full_size(),
         Pickable::IGNORE,
         LevelUiRoot,
         StateScoped(ScreenState::Gameplay),
         BackgroundColor(Color::srgba_u8(28, 119, 92, 255)),
         children![
-            hands_view(children![]),
-            table_hands(),
+            hands_view(),
+            table(),
         ],
     ));
 }

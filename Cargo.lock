@@ -1665,8 +1665,10 @@ dependencies = [
  "approx",
  "bevy_a11y",
  "bevy_app",
+ "bevy_asset",
  "bevy_derive",
  "bevy_ecs",
+ "bevy_image",
  "bevy_input",
  "bevy_input_focus",
  "bevy_log",
@@ -1676,6 +1678,7 @@ dependencies = [
  "bevy_tasks",
  "bevy_utils",
  "bevy_window",
+ "bytemuck",
  "cfg-if",
  "crossbeam-channel",
  "raw-window-handle",
@@ -1683,6 +1686,7 @@ dependencies = [
  "tracing",
  "wasm-bindgen",
  "web-sys",
+ "wgpu-types",
  "winit",
 ]
 

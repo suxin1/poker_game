@@ -5,8 +5,8 @@ use crate::animation::offset::NodeOffset;
 use crate::game::assets::CardAssets;
 use crate::theme::interaction::InteractionSelected;
 
-const CARD_WIDTH:Val = Vw(5.5);
-const CARD_HEIGHT:Val = Vw(8.);
+pub const CARD_WIDTH:Val = Vw(5.5);
+pub const CARD_HEIGHT:Val = Vw(8.);
 
 /// 一张牌的图片尺寸固定为 352 x 512（ 11: 16 ）
 /// 可选：

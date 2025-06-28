@@ -153,7 +153,7 @@ pub struct GameState {
 
     pub last_played_set_index: Option<usize>,
     pub last_played_cards: Option<Combination>,
-    table_score_counter: i32,
+    pub table_score_counter: i32,
 
     finished_order: VecDeque<usize>,
     // history: Vec<GameEvent>,
@@ -299,6 +299,10 @@ impl GameState {
             Some(current) => Some((current + 1) % 4), // 循环递增
             None => Some(0), // 如果当前无玩家，从0开始, 正常情况下不会匹配到这里
         };
+        // 跳过已经结束的玩家
+        if self.finished_order.contains(&self.current_player_seat.unwrap()) {
+            self.next_player();
+        }
     }
 
     /// 获取可叫的牌，叫牌阶段
@@ -457,21 +461,21 @@ impl GameState {
     ) -> Result<(), String> {
         let combo = Combination::analyze(cards.clone());
 
-        if combo == Combination::Invalid {
-            return Err("无效牌型".to_string());
-        }
-        if let Some(ref last_combo) = self.last_played_cards {
-            if !combo.gt(last_combo) {
-                return Err("牌型太弱".to_string());
-            }
-        }
         // 获取玩家手牌的可变引用
         let player_set = &mut self.seats[player_set_index];
+
+        if player_set.hands.is_empty() {
+            return Err("玩家手牌为空".to_string());
+        }
 
         let result = player_set.remove_cards(&cards);
 
         if let Err(err) = result {
             return Err(err);
+        }
+
+        if player_set.hands.is_empty() {
+            self.finished_order.push_back(player_set_index);
         }
 
         // === 更新游戏状态 ===

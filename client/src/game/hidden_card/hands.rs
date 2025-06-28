@@ -76,7 +76,7 @@ struct RenderLocalHandsWithAnime(Vec<Card>);
 #[derive(Event)]
 struct RenderLocalHandsImmediately(Vec<Card>);
 
-pub fn hands_view(children: impl Bundle) -> impl Bundle {
+pub fn hands_view() -> impl Bundle {
     (
         Node {
             width: Val::Vw(80.),
@@ -85,7 +85,7 @@ pub fn hands_view(children: impl Bundle) -> impl Bundle {
             ..default()
         },
         HandsRow,
-        children,
+        children![],
     )
 }
 
@@ -127,7 +127,7 @@ struct CardDealerMachine {
 impl Default for CardDealerMachine {
     fn default() -> Self {
         Self {
-            timer: Timer::from_seconds(0.2, TimerMode::Once),
+            timer: Timer::from_seconds(0.1, TimerMode::Once),
             cards: None,
         }
     }

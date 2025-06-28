@@ -16,7 +16,7 @@ bevy = { version = "0.16", default-features = false, features = [
 
     # Extra features
     "async_executor",
-    #"custom_cursor",
+    "custom_cursor",
     "multi_threaded",
     "tonemapping_luts",
 
@@ -101,7 +101,7 @@ web = [
 ]
 dev = [
     # Improve compile times for dev builds by linking Bevy as a dynamic library.
-#    "bevy/dynamic_linking",
+    "bevy/dynamic_linking",
     "bevy/bevy_dev_tools",
     "bevy/bevy_ui_debug",
     # Improve error messages coming from Bevy
