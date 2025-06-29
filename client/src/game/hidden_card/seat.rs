@@ -286,21 +286,13 @@ fn update_player_seat(
 
             if let Ok(_) = indicator_query.get(child) {
                 if let Ok(mut visibility) = visibility_query.get_mut(child) {
-                    if state.current_player_seat == Some(index.clone()) {
-                        *visibility = Visibility::Visible;
-                    } else {
-                        *visibility = Visibility::Hidden;
-                    }
+                    *visibility = Visibility::from_bool(state.current_player_seat == Some(index.clone()));
                 }
             }
 
             if let Ok(_) = cards_counter_query.get(child) {
                 if let Ok(mut visibility) = visibility_query.get_mut(child) {
-                    *visibility = if seat.score > 0 {
-                        Visibility::Visible
-                    } else {
-                        Visibility::Hidden
-                    };
+                    *visibility = Visibility::from_bool(seat.score > 0);
                 }
                 if let Ok(children) = children_query.get(child) {
                     for child in children.iter() {
@@ -311,33 +303,23 @@ fn update_player_seat(
                 }
             }
 
-            if let Some(mode) = state.mode.clone() {
-                match mode {
-                    GameMode::HiddenAllies {
-                        caller,
-                        callee,
-                        card,
-                    } => {
-                        if let Ok(_) = called_card_display.get(child) {
-                            if let Ok(mut visibility) = visibility_query.get_mut(child) {
-                                *visibility = if caller == *index {
-                                    Visibility::Visible
-                                } else {
-                                    Visibility::Hidden
-                                };
-                            }
-                            if let Ok(mut image_node) = image_node_query.get_mut(child) {
-                                if let Some(atlas) = &mut image_node.texture_atlas {
-                                    atlas.index = small_card_assets.get_index(&card);
-                                }
-                            }
+            if let Some(GameMode::HiddenAllies {
+                caller,
+                callee,
+                card,
+            }) = &state.mode
+            {
+                if let Ok(_) = called_card_display.get(child) {
+                    if let Ok(mut visibility) = visibility_query.get_mut(child) {
+                        *visibility = Visibility::from_bool(*caller == *index);
+                    }
+                    if let Ok(mut image_node) = image_node_query.get_mut(child) {
+                        if let Some(atlas) = &mut image_node.texture_atlas {
+                            atlas.index = small_card_assets.get_index(&card);
                         }
                     }
-                    _ => {}
                 }
             }
-
-
         }
     }
 }

@@ -1,7 +1,8 @@
 pub mod app;
-pub mod val;
-pub mod plugin_group_builder;
 mod node;
+pub mod plugin_group_builder;
+pub mod val;
+mod visibility;
 
 #[allow(unused_imports)]
 pub mod prelude {
@@ -10,4 +11,5 @@ pub mod prelude {
     pub use super::node::NodeExtLayout;
     pub use super::plugin_group_builder::PluginGroupBuilderExtReplace as _;
     pub use super::val::ValExtAdd as _;
+    pub use super::visibility::VisibilityExt;
 }
