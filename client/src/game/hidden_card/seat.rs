@@ -1,15 +1,17 @@
+use crate::animation::ui_sprite_animation::{AnimationIndices, AnimationTimer};
+use crate::game::assets::{CardAssets, IndicatorAsset, SmallCardAssets};
 use crate::game::hidden_card::level::{LevelUiRoot, spawn_level};
 pub use crate::game::widget::prelude::*;
 use crate::prelude::*;
 use crate::screens::ScreenState;
-use shared::Player;
-use shared::event::GameEvent;
-use shared::the_hidden_card::state::GameState;
-use std::f32::consts::PI;
-
-use crate::animation::ui_sprite_animation::{AnimationIndices, AnimationTimer};
-use crate::game::assets::IndicatorAsset;
 use crate::theme::palette::ThemeColor;
+use bevy::ecs::observer::TriggerTargets;
+use bevy::tasks::futures_lite::StreamExt;
+use shared::Player;
+use shared::cards::Card;
+use shared::event::GameEvent;
+use shared::the_hidden_card::state::{GameMode, GameState};
+use std::f32::consts::PI;
 use strum_macros::Display;
 
 pub(super) fn plugin(app: &mut App) {
@@ -27,11 +29,19 @@ pub(super) fn plugin(app: &mut App) {
     );
 }
 
+#[derive(Component)]
+struct CollectedCardsCounter;
+
+#[derive(Component)]
+struct CalledCardDisplay;
+
 fn setup_seat_view(
     mut cmds: Commands,
     mut ui_root: Query<Entity, With<LevelUiRoot>>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     assets: Res<IndicatorAsset>,
+    card_assets: Res<CardAssets>,
+    small_card_assets: Res<SmallCardAssets>,
 ) {
     let ui_root = r!(ui_root.single());
 
@@ -99,17 +109,67 @@ fn setup_seat_view(
                     parent
                         .spawn(seat_view(
                             position.get_layout(),
-                            position,
+                            position.clone(),
                             color,
                             seat_click,
                         ))
                         .with_children(|parent| {
+                            let right = if matches!(position, SeatPosition::Right) {
+                                Auto
+                            } else {
+                                Vw(-2.8)
+                            };
+                            let left = if matches!(position, SeatPosition::Right) {
+                                Vw(-2.8)
+                            } else {
+                                Auto
+                            };
                             parent.spawn(create_arrow_component(
                                 arrow_node,
                                 texture.clone(),
                                 texture_atlas_layout.clone(),
                                 animation_indices.clone(),
                                 rotation,
+                            ));
+                            // 记分显示
+                            parent.spawn((
+                                Node {
+                                    top: Vw(0.6),
+                                    right,
+                                    left,
+                                    width: Vw(2.8),
+                                    height: Vw(3.6),
+                                    ..Node::ROW_CENTER.full_size().abs()
+                                },
+                                Visibility::Hidden,
+                                CollectedCardsCounter,
+                                children![
+                                    (
+                                        Node::DEFAULT.full_size().abs(),
+                                        ImageNode {
+                                            image: card_assets.back.clone(),
+                                            ..default()
+                                        }
+                                    ),
+                                    body_text("0")
+                                ],
+                            ));
+                            // 叫牌显示
+                            parent.spawn((
+                                Node {
+                                    bottom: Vw(0.6),
+                                    right,
+                                    left,
+                                    width: Vw(2.8),
+                                    height: Vw(3.6),
+                                    ..Node::ROW_CENTER.full_size().abs()
+                                },
+                                Visibility::Hidden,
+                                CalledCardDisplay,
+                                small_card_assets.image_node(&Card::new(
+                                    shared::cards::Suit::Clubs,
+                                    shared::cards::CardValue::Ace,
+                                )),
                             ));
                         });
                 }
@@ -148,7 +208,7 @@ fn handle_seat_update_event(
                     cmds.trigger(RunSeatUpdate);
                     // event_writer.write(LocalGameEvent::RunSeatUpdate);
                 }
-            }
+            },
             GameEvent::Ready { client_id: _ }
             | GameEvent::PlayCards(_, _)
             | GameEvent::Pass(_)
@@ -160,7 +220,7 @@ fn handle_seat_update_event(
                 if *is_seat_position_map_available {
                     cmds.trigger(RunSeatUpdate);
                 }
-            }
+            },
             GameEvent::SyncState(_) => {
                 let local_index = c!(state.get_player_seat_index_by_id(local_player.id));
                 let seat_map = get_position_relative_to_local(local_index);
@@ -171,24 +231,34 @@ fn handle_seat_update_event(
                 if *is_seat_position_map_available {
                     cmds.trigger(RunSeatUpdate);
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 }
 
 fn update_player_seat(
     _: Trigger<RunSeatUpdate>,
+    mut cmds: Commands,
     mut seats_query: Query<(Entity, &Children, &SeatPosition), With<SeatPosition>>,
     mut player_avatar_query: Query<Entity, With<PlayerAvatarBox>>,
-    mut indicator_query: Query<&mut Visibility, With<ArrowIndicator>>,
-    mut player_name_text_query: Query<&mut Text, With<PlayerNameText>>,
+
+    mut player_name_query: Query<&PlayerNameText>,
     mut background_query: Query<&mut BackgroundColor>,
+    mut cards_counter_query: Query<&CollectedCardsCounter>,
+    mut called_card_display: Query<&CalledCardDisplay>,
+
+    mut indicator_query: Query<&ArrowIndicator>,
+    mut visibility_query: Query<&mut Visibility>,
+    mut text_query: Query<&mut Text>,
+    mut image_node_query: Query<&mut ImageNode>,
+    mut children_query: Query<&Children>,
     state: Res<GameState>,
     seat_position_map: Res<SeatPositionMap>,
+    small_card_assets: Res<SmallCardAssets>,
 ) {
     let seats_data = state.get_seats();
-    for (entity, children, seat_position) in seats_query.iter_mut() {
+    for (entity, children, seat_position) in seats_query {
         let index = c!(seat_position_map.0.get(seat_position));
         let seat = &seats_data[index.clone()];
         let player_data = c!(seat.get_player());
@@ -202,21 +272,72 @@ fn update_player_seat(
         }
 
         for child in children.iter() {
-            if let Ok(mut text) = player_name_text_query.get_mut(child) {
-                **text = player_data.name.clone();
-            };
             if let Ok(entity) = player_avatar_query.get_mut(child) {
                 if let Ok(mut background_color) = background_query.get_mut(entity) {
                     background_color.0 = SEAT_COLOR[index.clone()];
                 }
             };
-            if let Ok(mut indicator_visibility) = indicator_query.get_mut(child) {
-                if state.current_player_seat == Some(index.clone()) {
-                    *indicator_visibility = Visibility::Visible;
-                } else {
-                    *indicator_visibility = Visibility::Hidden;
+
+            if let Ok(_) = player_name_query.get(child) {
+                if let Ok(mut text) = text_query.get_mut(child) {
+                    **text = player_data.name.clone();
                 }
             }
+
+            if let Ok(_) = indicator_query.get(child) {
+                if let Ok(mut visibility) = visibility_query.get_mut(child) {
+                    if state.current_player_seat == Some(index.clone()) {
+                        *visibility = Visibility::Visible;
+                    } else {
+                        *visibility = Visibility::Hidden;
+                    }
+                }
+            }
+
+            if let Ok(_) = cards_counter_query.get(child) {
+                if let Ok(mut visibility) = visibility_query.get_mut(child) {
+                    *visibility = if seat.score > 0 {
+                        Visibility::Visible
+                    } else {
+                        Visibility::Hidden
+                    };
+                }
+                if let Ok(children) = children_query.get(child) {
+                    for child in children.iter() {
+                        if let Ok(mut text) = text_query.get_mut(child) {
+                            **text = seat.score.to_string();
+                        }
+                    }
+                }
+            }
+
+            if let Some(mode) = state.mode.clone() {
+                match mode {
+                    GameMode::HiddenAllies {
+                        caller,
+                        callee,
+                        card,
+                    } => {
+                        if let Ok(_) = called_card_display.get(child) {
+                            if let Ok(mut visibility) = visibility_query.get_mut(child) {
+                                *visibility = if caller == *index {
+                                    Visibility::Visible
+                                } else {
+                                    Visibility::Hidden
+                                };
+                            }
+                            if let Ok(mut image_node) = image_node_query.get_mut(child) {
+                                if let Some(atlas) = &mut image_node.texture_atlas {
+                                    atlas.index = small_card_assets.get_index(&card);
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+
         }
     }
 }
@@ -247,7 +368,7 @@ const SEAT_COLOR: [Color; 5] = [
     Color::srgba(0.6, 0.6, 0.6, 1.), // 橘
 ];
 
-#[derive(Component, PartialEq, Eq, Hash, Display)]
+#[derive(Component, PartialEq, Eq, Hash, Clone, Display)]
 pub enum SeatPosition {
     Bottom,
     Right,

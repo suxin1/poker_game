@@ -17,7 +17,7 @@ pub struct PlayerSeat {
     pub player: Option<Player>,
     pub hands: Vec<Card>,
     coins: i32,      // 金币
-    score: i32,      // 分数
+    pub score: i32,      // 分数
     pub ready: bool, // 准备状态
     pub hands_ready: bool,
     pub player_connected: bool,
@@ -294,17 +294,6 @@ impl GameState {
         }
     }
 
-    fn next_player(&mut self) {
-        self.current_player_seat = match self.current_player_seat {
-            Some(current) => Some((current + 1) % 4), // 循环递增
-            None => Some(0), // 如果当前无玩家，从0开始, 正常情况下不会匹配到这里
-        };
-        // 跳过已经结束的玩家
-        if self.finished_order.contains(&self.current_player_seat.unwrap()) {
-            self.next_player();
-        }
-    }
-
     /// 获取可叫的牌，叫牌阶段
     fn get_callable_cards(&self) -> Option<Vec<Card>> {
         if let Stage::CallCard(caller_index) = self.stage {
@@ -488,6 +477,22 @@ impl GameState {
 
     pub fn pass(&mut self) {
         self.next_player();
+        // self.rund_process();
+        // self.jump_finished_player();
+    }
+
+    fn next_player(&mut self) {
+        self.current_player_seat = match self.current_player_seat {
+            Some(current) => Some((current + 1) % 4), // 循环递增
+            None => Some(0), // 如果当前无玩家，从0开始, 正常情况下不会匹配到这里
+        };
+        self.round_process();
+        if self.finished_order.contains(&self.current_player_seat.unwrap()) {
+            self.next_player();
+        }
+    }
+
+    fn round_process(&mut self) {
         if let (Some(current), Some(last_played)) =
             (self.current_player_seat, self.last_played_set_index)
         {

@@ -82,6 +82,7 @@ pub fn hands_view() -> impl Bundle {
             width: Val::Vw(80.),
             position_type: PositionType::Absolute,
             bottom: Val::Px(16.),
+            left: Val::Vw(15.),
             ..default()
         },
         HandsRow,

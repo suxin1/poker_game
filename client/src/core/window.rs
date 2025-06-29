@@ -10,6 +10,8 @@ pub(super) fn plugin(app: &mut App) {
         primary_window: Some(Window {
             name: Some("bevy_app".to_string()),
             fit_canvas_to_parent: true,
+            // don't hijack keyboard shortcuts like F5, F6, F12, Ctrl+R etc.
+            prevent_default_event_handling: true,
             visible: true,
             position: WindowPosition::At(IVec2::new(0, 0)),
             resolution: WindowResolution::new(844., 390.),
