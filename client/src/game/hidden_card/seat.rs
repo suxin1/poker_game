@@ -35,6 +35,9 @@ struct CollectedCardsCounter;
 #[derive(Component)]
 struct CalledCardDisplay;
 
+#[derive(Component)]
+struct TeamIndicator;
+
 fn setup_seat_view(
     mut cmds: Commands,
     mut ui_root: Query<Entity, With<LevelUiRoot>>,
@@ -171,11 +174,38 @@ fn setup_seat_view(
                                     shared::cards::CardValue::Ace,
                                 )),
                             ));
+                            // 队伍显示
+                            parent.spawn((
+                                Node {
+                                    height: Vw(0.5),
+                                    width: Percent(40.),
+                                    bottom: if matches!(position, SeatPosition::Top) {
+                                        Auto
+                                    } else {
+                                        Vw(-0.8)
+                                    },
+                                    top: if matches!(position, SeatPosition::Top) {
+                                        Vw(-0.8)
+                                    } else {
+                                        Auto
+                                    },
+                                    ..Node::DEFAULT.abs()
+                                },
+                                TeamIndicator,
+                                BorderRadius::MAX,
+                                Visibility::Hidden,
+                                BackgroundColor(Color::WHITE),
+                            ));
                         });
                 }
             });
     });
 }
+
+// ====================== 坐席显示更新 ======================
+
+const TEAM_ONE_COLOR: Color = Color::srgba_u8(64, 150, 255, 255);
+const TEAM_TWO_COLOR: Color = Color::srgba_u8(207, 19, 34, 255);
 
 #[derive(Resource)]
 struct SeatPositionMap(HashMap<SeatPosition, usize>);
@@ -244,11 +274,12 @@ fn update_player_seat(
     mut player_avatar_query: Query<Entity, With<PlayerAvatarBox>>,
 
     mut player_name_query: Query<&PlayerNameText>,
-    mut background_query: Query<&mut BackgroundColor>,
     mut cards_counter_query: Query<&CollectedCardsCounter>,
     mut called_card_display: Query<&CalledCardDisplay>,
-
     mut indicator_query: Query<&ArrowIndicator>,
+    mut team_indicator: Query<&TeamIndicator>,
+
+    mut background_query: Query<&mut BackgroundColor>,
     mut visibility_query: Query<&mut Visibility>,
     mut text_query: Query<&mut Text>,
     mut image_node_query: Query<&mut ImageNode>,
@@ -286,7 +317,8 @@ fn update_player_seat(
 
             if let Ok(_) = indicator_query.get(child) {
                 if let Ok(mut visibility) = visibility_query.get_mut(child) {
-                    *visibility = Visibility::from_bool(state.current_player_seat == Some(index.clone()));
+                    *visibility =
+                        Visibility::from_bool(state.current_player_seat == Some(index.clone()));
                 }
             }
 
@@ -303,12 +335,25 @@ fn update_player_seat(
                 }
             }
 
+            let call_card_visibility;
+            let call_card_image_atlas;
+
+            if let Ok(_) = called_card_display.get(child) {
+                call_card_visibility = visibility_query.get_mut(child).unwrap();
+
+                let image_node = image_node_query.get_mut(child).unwrap();
+                call_card_image_atlas = &mut image_node.texture_atlas.unwrap();
+
+            }
+
             if let Some(GameMode::HiddenAllies {
                 caller,
                 callee,
                 card,
             }) = &state.mode
             {
+                *call_card_visibility = Visibility::from_bool(*caller == *index);
+                call_card_image_atlas.index = small_card_assets.get_index(&card);
                 if let Ok(_) = called_card_display.get(child) {
                     if let Ok(mut visibility) = visibility_query.get_mut(child) {
                         *visibility = Visibility::from_bool(*caller == *index);
@@ -317,6 +362,36 @@ fn update_player_seat(
                         if let Some(atlas) = &mut image_node.texture_atlas {
                             atlas.index = small_card_assets.get_index(&card);
                         }
+                    }
+                }
+
+                if let Ok(_) = team_indicator.get(child) {
+                    let mut visibility = visibility_query.get_mut(child).unwrap();
+                    let mut background_color = background_query.get_mut(child).unwrap();
+                    if state.is_hidden_card_shown {
+                        *visibility = Visibility::Visible;
+                        if *index == *caller || *index == *callee {
+                            background_color.0 = TEAM_ONE_COLOR;
+                        } else {
+                            background_color.0 = TEAM_TWO_COLOR;
+                        }
+                    } else {
+                        *visibility = Visibility::Hidden;
+                    }
+                }
+            } else if let Some(GameMode::OneVsThree(blocking_index)) = &state.mode {
+                if let Ok(_) = team_indicator.get(child) {
+                    let mut visibility = visibility_query.get_mut(child).unwrap();
+                    let mut background_color = background_query.get_mut(child).unwrap();
+                    if state.is_hidden_card_shown {
+                        *visibility = Visibility::Visible;
+                        if *index == *caller || *index == *callee {
+                            background_color.0 = TEAM_ONE_COLOR;
+                        } else {
+                            background_color.0 = TEAM_TWO_COLOR;
+                        }
+                    } else {
+                        *visibility = Visibility::Hidden;
                     }
                 }
             }
@@ -371,7 +446,7 @@ impl SeatPosition {
     pub fn get_layout(&self) -> AbsolutePosition {
         match self {
             SeatPosition::Bottom => AbsolutePosition {
-                bottom: Px(8.),
+                bottom: Vw(1.5),
                 left: Px(8.),
                 top: Val::Auto,
                 right: Val::Auto,
@@ -385,7 +460,7 @@ impl SeatPosition {
             SeatPosition::Top => AbsolutePosition {
                 bottom: Val::Auto,
                 left: Val::Auto,
-                top: Px(8.),
+                top: Vw(1.5),
                 right: Val::Auto,
             },
             SeatPosition::Left => AbsolutePosition {

@@ -1,6 +1,17 @@
+//! ### 基本规则
+//! 游戏共四名玩家，开始每个玩家会获得随机的13张牌，共52张。
+//! 手持黑桃7的玩家（A）需要从4张2中选择一张，其他3人中持有已选牌的为A玩家队友，然后从A玩家开始出牌。
+//! 如果有玩家（B）选择包牌，那么其他3个玩家为一队，这里面任何一个玩家出完牌则判B玩家输。
+//! ### 游戏记分规则
+//! 游戏结束分三种情况，
+//! 1. 单赢，队伍一名玩家为上游，一名玩家为下游，记牌数高的队伍判赢，赢的队伍每位玩家均得1分。
+//! 2. 双赢，队伍一名玩家为上游，一名玩家为中游，不记牌获得胜利，一人获得2分。
+//! 3. 包牌，任一玩家出完游戏结束，包牌玩家（A）出完，获得（3 x 3）= 9分，若其他玩家出完，则玩家（A）负9分。
+
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
 use std::time::Instant;
+use itertools::Itertools;
 use strum::IntoEnumIterator;
 
 use crate::cards::{Card, CardValue, Deck, Suit};
@@ -124,7 +135,7 @@ pub enum Stage {
     DealCards,                // 发牌
     CallCard(PlayerSetIndex), // 叫牌
     PlayCards,                // 出牌
-    Ended,                    // 游戏结束
+    Ended(Option<Vec<(usize, i32)>>),                    // 游戏结束
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -155,6 +166,8 @@ pub struct GameState {
     pub last_played_cards: Option<Combination>,
     pub table_score_counter: i32,
 
+    pub multiplayer: u32,
+
     finished_order: VecDeque<usize>,
     // history: Vec<GameEvent>,
 }
@@ -177,6 +190,9 @@ impl Default for GameState {
             last_played_set_index: None,
             is_hidden_card_shown: false,
             table_score_counter: 0,
+
+            multiplayer: 1,
+
             finished_order: VecDeque::new(),
             // history: Vec::new(),
         }
@@ -425,7 +441,7 @@ impl GameState {
             self.current_player_seat = Some(caller_index);
         } else {
             self.mode = None;
-            self.stage = Stage::Ended;
+            self.stage = Stage::Ended(None);
         }
     }
 
@@ -442,7 +458,8 @@ impl GameState {
         Ok(combo)
     }
 
-
+    /// #### 关键出牌逻辑
+    /// ⚠️做出改动后务必测试出牌逻辑，确保逻辑正确
     pub fn play_cards(
         &mut self,
         player_set_index: PlayerSetIndex,
@@ -455,6 +472,13 @@ impl GameState {
 
         if player_set.hands.is_empty() {
             return Err("玩家手牌为空".to_string());
+        }
+
+        // 判断隐藏牌是否出现
+        if let Some(GameMode::HiddenAllies {caller, callee, card}) = &self.mode {
+            if cards.contains(card) {
+                self.is_hidden_card_shown = true;
+            }
         }
 
         let result = player_set.remove_cards(&cards);
@@ -477,10 +501,10 @@ impl GameState {
 
     pub fn pass(&mut self) {
         self.next_player();
-        // self.rund_process();
-        // self.jump_finished_player();
     }
 
+    /// #### 关键出牌逻辑
+    /// ⚠️做出改动后务必测试出牌逻辑，确保逻辑正确
     fn next_player(&mut self) {
         self.current_player_seat = match self.current_player_seat {
             Some(current) => Some((current + 1) % 4), // 循环递增
@@ -492,6 +516,8 @@ impl GameState {
         }
     }
 
+    /// #### 关键出牌逻辑
+    /// ⚠️做出改动后务必测试出牌逻辑，确保逻辑正确
     fn round_process(&mut self) {
         if let (Some(current), Some(last_played)) =
             (self.current_player_seat, self.last_played_set_index)
@@ -531,6 +557,19 @@ impl GameState {
             },
             _ => (),
         }
+    }
+
+    fn game_end_check(&mut self) -> Option<GameMode> {
+        if self.finished_order.is_empty() {
+            return None;
+        }
+        if let Some(GameMode::HiddenAllies {caller, callee, card}) = &self.mode {
+            let a = self.finished_order.iter().chunks(2);
+
+        } else if let Some(GameMode::OneVsThree(player)) = &self.mode {
+
+        }
+        None
     }
 }
 

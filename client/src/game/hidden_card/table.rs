@@ -47,7 +47,7 @@ fn handle_game_event(
 struct RenderTableHands(Vec<Card>);
 /// ### 渲染上一个玩家压下的牌组
 /// ⚠️注意这里不能使用 `Query<(Entity, &Children), With<TableHandsRow>>`
-/// 因为下面这段代码在移除children后，会导致[`Children`]会从Entity中移除，
+/// 因为下面这段代码在销毁children后，会导致[`Children`]从Entity中移除，
 /// 导致下一次查询[`TableHandsRow`]相关[`Entity`]失败。
 /// ```
 /// for child in children.iter() {
