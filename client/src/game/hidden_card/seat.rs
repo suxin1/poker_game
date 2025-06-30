@@ -335,39 +335,38 @@ fn update_player_seat(
                 }
             }
 
-            let call_card_visibility;
-            let call_card_image_atlas;
-
             if let Ok(_) = called_card_display.get(child) {
-                call_card_visibility = visibility_query.get_mut(child).unwrap();
+                let mut call_card_visibility = visibility_query.get_mut(child).unwrap();
+                let mut image_node = image_node_query
+                    .get_mut(child)
+                    .unwrap();
+                let call_card_image_atlas = image_node
+                    .texture_atlas
+                    .as_mut()
+                    .unwrap();
 
-                let image_node = image_node_query.get_mut(child).unwrap();
-                call_card_image_atlas = &mut image_node.texture_atlas.unwrap();
-
+                if let Some(GameMode::HiddenAllies {
+                    caller,
+                    callee,
+                    card,
+                }) = &state.mode
+                {
+                    *call_card_visibility = Visibility::from_bool(*caller == *index);
+                    call_card_image_atlas.index = small_card_assets.get_index(&card);
+                } else {
+                    *call_card_visibility = Visibility::Hidden;
+                }
             }
 
-            if let Some(GameMode::HiddenAllies {
-                caller,
-                callee,
-                card,
-            }) = &state.mode
-            {
-                *call_card_visibility = Visibility::from_bool(*caller == *index);
-                call_card_image_atlas.index = small_card_assets.get_index(&card);
-                if let Ok(_) = called_card_display.get(child) {
-                    if let Ok(mut visibility) = visibility_query.get_mut(child) {
-                        *visibility = Visibility::from_bool(*caller == *index);
-                    }
-                    if let Ok(mut image_node) = image_node_query.get_mut(child) {
-                        if let Some(atlas) = &mut image_node.texture_atlas {
-                            atlas.index = small_card_assets.get_index(&card);
-                        }
-                    }
-                }
-
-                if let Ok(_) = team_indicator.get(child) {
-                    let mut visibility = visibility_query.get_mut(child).unwrap();
-                    let mut background_color = background_query.get_mut(child).unwrap();
+            if let Ok(_) = team_indicator.get(child) {
+                let mut visibility = visibility_query.get_mut(child).unwrap();
+                let mut background_color = background_query.get_mut(child).unwrap();
+                if let Some(GameMode::HiddenAllies {
+                    caller,
+                    callee,
+                    card,
+                }) = &state.mode
+                {
                     if state.is_hidden_card_shown {
                         *visibility = Visibility::Visible;
                         if *index == *caller || *index == *callee {
@@ -378,20 +377,12 @@ fn update_player_seat(
                     } else {
                         *visibility = Visibility::Hidden;
                     }
-                }
-            } else if let Some(GameMode::OneVsThree(blocking_index)) = &state.mode {
-                if let Ok(_) = team_indicator.get(child) {
-                    let mut visibility = visibility_query.get_mut(child).unwrap();
-                    let mut background_color = background_query.get_mut(child).unwrap();
-                    if state.is_hidden_card_shown {
-                        *visibility = Visibility::Visible;
-                        if *index == *caller || *index == *callee {
-                            background_color.0 = TEAM_ONE_COLOR;
-                        } else {
-                            background_color.0 = TEAM_TWO_COLOR;
-                        }
+                } else if let Some(GameMode::OneVsThree(blocking_index)) = &state.mode {
+                    *visibility = Visibility::Visible;
+                    if *index == *blocking_index {
+                        background_color.0 = TEAM_ONE_COLOR;
                     } else {
-                        *visibility = Visibility::Hidden;
+                        background_color.0 = TEAM_TWO_COLOR;
                     }
                 }
             }

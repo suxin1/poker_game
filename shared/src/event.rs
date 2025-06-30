@@ -39,7 +39,6 @@ pub enum GameEvent {
     PlayerLeave(ClientId),
 
     AssignSeats { player: Player, seat_index: usize },
-    ToWaitPlayerReadyStage,
     Ready { client_id: ClientId },
 
     ToDealCardStage,
@@ -52,4 +51,6 @@ pub enum GameEvent {
 
     PlayCards(usize, Vec<Card>),
     Pass(usize),
+
+    GameEnd(Vec<(usize, i32)>)
 }

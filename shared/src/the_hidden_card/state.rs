@@ -6,29 +6,23 @@
 //! 游戏结束分三种情况，
 //! 1. 单赢，队伍一名玩家为上游，一名玩家为下游，记牌数高的队伍判赢，赢的队伍每位玩家均得1分。
 //! 2. 双赢，队伍一名玩家为上游，一名玩家为中游，不记牌获得胜利，一人获得2分。
-//! 3. 包牌，任一玩家出完游戏结束，包牌玩家（A）出完，获得（3 x 3）= 9分，若其他玩家出完，则玩家（A）负9分。
+//! 3. 包牌，任一玩家出完游戏结束，包牌玩家（A）出完，获得（3 x 3）= 9分，若其他任一玩家出完，则玩家（A）负9分。
 
-use serde::{Deserialize, Serialize};
-use std::collections::{HashSet, VecDeque};
-use std::time::Instant;
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet, VecDeque};
 use strum::IntoEnumIterator;
 
-use crate::cards::{Card, CardValue, Deck, Suit};
-use crate::event::GameEvent;
+use crate::cards::{Card, CardValue, Suit};
 pub use crate::the_hidden_card::prelude::*;
 use crate::{ClientId, Player};
-
-type PlayerSetIndex = usize;
-type CalleeSetIndex = usize;
-type CallerIndex = usize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PlayerSeat {
     pub player: Option<Player>,
     pub hands: Vec<Card>,
-    coins: i32,      // 金币
-    pub score: i32,      // 分数
+    pub coins: i32,  // 金币
+    pub score: i32,  // 分数
     pub ready: bool, // 准备状态
     pub hands_ready: bool,
     pub player_connected: bool,
@@ -131,11 +125,11 @@ impl PlayerSeat {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Stage {
-    PreGame,                  // 等带玩家入座
-    DealCards,                // 发牌
-    CallCard(PlayerSetIndex), // 叫牌
-    PlayCards,                // 出牌
-    Ended(Option<Vec<(usize, i32)>>),                    // 游戏结束
+    PreGame,                          // 等带玩家入座
+    DealCards,                        // 发牌
+    CallCard(usize),                  // 叫牌
+    PlayCards,                        // 出牌
+    Ended(Option<Vec<(usize, i32)>>), // 游戏结束
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -145,7 +139,7 @@ pub enum GameMode {
         callee: usize,
         card: Card,
     }, // 暗叫组队
-    OneVsThree(PlayerSetIndex), // 包牌
+    OneVsThree(usize), // 包牌
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -157,8 +151,8 @@ pub struct GameState {
     pub mode: Option<GameMode>,
     pub stage: Stage,
 
-    lead: Option<usize>,                   // 第一个出牌的人
-    the_hidden: Option<usize>,             // 隐藏队友
+    lead: Option<usize>,                    // 第一个出牌的人
+    the_hidden: Option<usize>,              // 隐藏队友
     pub current_player_seat: Option<usize>, // 当前出牌
     pub is_hidden_card_shown: bool,
 
@@ -166,7 +160,8 @@ pub struct GameState {
     pub last_played_cards: Option<Combination>,
     pub table_score_counter: i32,
 
-    pub multiplayer: u32,
+    pub base: i32,
+    pub multiplayer: i32,
 
     finished_order: VecDeque<usize>,
     // history: Vec<GameEvent>,
@@ -191,6 +186,7 @@ impl Default for GameState {
             is_hidden_card_shown: false,
             table_score_counter: 0,
 
+            base: 1,
             multiplayer: 1,
 
             finished_order: VecDeque::new(),
@@ -407,7 +403,7 @@ impl GameState {
     /// 第三步：当前状态：Stage::CallCard(caller_index) 执行后进入下一个状态：Stage::InGame
     /// 设置游戏模式为 GameMode::OneVsThree(player_set_index)
     /// 有玩家包牌后始游戏
-    pub fn blocking_start(&mut self, player_set_index: PlayerSetIndex) {
+    pub fn blocking_start(&mut self, player_set_index: usize) {
         if !matches!(self.stage, Stage::CallCard(_)) {
             return;
         }
@@ -460,11 +456,16 @@ impl GameState {
 
     /// #### 关键出牌逻辑
     /// ⚠️做出改动后务必测试出牌逻辑，确保逻辑正确
-    pub fn play_cards(
-        &mut self,
-        player_set_index: PlayerSetIndex,
-        cards: Vec<Card>,
-    ) -> Result<(), String> {
+    /// 这里如果最后一名玩家出牌完成后，不将其加入已完成列表。因为在[`next_player`]中，下面的代码会导致无限循环：
+    /// ```
+    ///         if self
+    ///             .finished_order
+    ///             .contains(&self.current_player_seat.unwrap())
+    ///         {
+    ///             self.next_player();
+    ///         }
+    /// ```
+    pub fn play_cards(&mut self, player_set_index: usize, cards: Vec<Card>) -> Result<(), String> {
         let combo = Combination::analyze(cards.clone());
 
         // 获取玩家手牌的可变引用
@@ -475,11 +476,19 @@ impl GameState {
         }
 
         // 判断隐藏牌是否出现
-        if let Some(GameMode::HiddenAllies {caller, callee, card}) = &self.mode {
-            if cards.contains(card) {
-                self.is_hidden_card_shown = true;
+        if !self.is_hidden_card_shown {
+            if let Some(GameMode::HiddenAllies {
+                            caller,
+                            callee,
+                            card,
+                        }) = &self.mode
+            {
+                if cards.contains(card) {
+                    self.is_hidden_card_shown = true;
+                }
             }
         }
+
 
         let result = player_set.remove_cards(&cards);
 
@@ -487,7 +496,8 @@ impl GameState {
             return Err(err);
         }
 
-        if player_set.hands.is_empty() {
+
+        if player_set.hands.is_empty() && self.finished_order.len() < 3 {
             self.finished_order.push_back(player_set_index);
         }
 
@@ -505,13 +515,17 @@ impl GameState {
 
     /// #### 关键出牌逻辑
     /// ⚠️做出改动后务必测试出牌逻辑，确保逻辑正确
+    /// TODO 最后一名玩家刚好出完牌时，这里会无限循环
     fn next_player(&mut self) {
         self.current_player_seat = match self.current_player_seat {
             Some(current) => Some((current + 1) % 4), // 循环递增
             None => Some(0), // 如果当前无玩家，从0开始, 正常情况下不会匹配到这里
         };
         self.round_process();
-        if self.finished_order.contains(&self.current_player_seat.unwrap()) {
+        if self
+            .finished_order
+            .contains(&self.current_player_seat.unwrap())
+        {
             self.next_player();
         }
     }
@@ -559,15 +573,117 @@ impl GameState {
         }
     }
 
-    fn game_end_check(&mut self) -> Option<GameMode> {
+    pub fn game_end_check(&mut self) -> Option<Stage> {
         if self.finished_order.is_empty() {
             return None;
         }
-        if let Some(GameMode::HiddenAllies {caller, callee, card}) = &self.mode {
-            let a = self.finished_order.iter().chunks(2);
+        if let Some(GameMode::HiddenAllies {
+            caller,
+            callee,
+            card,
+        }) = &self.mode
+        {
+            if self.finished_order.len() >= 2 {
+                let team_one = Vec::from(&[caller.clone(), callee.clone()]);
+                let mut team_two: Vec<usize> = Vec::from(&[0, 1, 2, 3]);
+                team_two.retain(|x| !team_one.contains(x));
+                let first = self.finished_order[0];
+                let second = self.finished_order[1];
 
-        } else if let Some(GameMode::OneVsThree(player)) = &self.mode {
+                let mut score_map: HashMap<usize, i32> = HashMap::new();
 
+                //双赢
+                if (first == team_one[0] && second == team_one[1])
+                    || (first == team_one[1] && second == team_one[0])
+                {
+                    self.finished_order.push_back(team_two[0]);
+                    self.finished_order.push_back(team_two[1]);
+
+                    let score = self.base * 2 * self.multiplayer;
+                    score_map.insert(first, score);
+                    score_map.insert(second, score);
+                    score_map.insert(team_two[0], -score);
+                    score_map.insert(team_two[1], -score);
+                } else if (first == team_two[0] && second == team_two[1])
+                    || (first == team_two[1] && second == team_two[0])
+                {
+                    self.finished_order.push_back(team_one[0]);
+                    self.finished_order.push_back(team_one[1]);
+
+                    let score = self.base * 2 * self.multiplayer;
+                    score_map.insert(first, score);
+                    score_map.insert(second, score);
+                    score_map.insert(team_one[0], -score);
+                    score_map.insert(team_one[1], -score);
+                } else if self.finished_order.len() == 3 && self.last_played_cards.is_none() {
+                    // 单赢
+                    let last = [0, 1, 2, 3]
+                        .iter()
+                        .filter(|x| !self.finished_order.contains(x))
+                        .next();
+                    let Some(last) = last else {
+                        // ⚠️正常情况下不会走到这里
+                        return None;
+                    };
+                    self.finished_order.push_back(*last);
+
+                    let mut team_one_cards_num =
+                        self.seats[team_one[0]].score + self.seats[team_one[1]].score;
+                    let mut team_two_cards_num =
+                        self.seats[team_two[0]].score + self.seats[team_two[1]].score;
+
+                    if team_one.contains(&last) {
+                        team_two_cards_num += self.seats[*last].score;
+                    } else if team_two.contains(&last) {
+                        team_one_cards_num += self.seats[*last].score;
+                    }
+                    let score = self.base * self.multiplayer;
+                    if team_one_cards_num > team_two_cards_num {
+                        score_map.insert(team_one[0], score);
+                        score_map.insert(team_one[1], score);
+                        score_map.insert(team_two[0], -score);
+                        score_map.insert(team_two[1], -score);
+                    } else if team_one_cards_num < team_two_cards_num {
+                        score_map.insert(team_one[0], -score);
+                        score_map.insert(team_one[1], -score);
+                        score_map.insert(team_two[0], score);
+                        score_map.insert(team_two[1], score);
+                    } else {
+                        score_map.insert(team_one[0], 0);
+                        score_map.insert(team_one[1], 0);
+                        score_map.insert(team_two[0], 0);
+                        score_map.insert(team_two[1], 0);
+                    }
+                }
+
+                if !score_map.is_empty() {
+                    let result: Vec<(usize, i32)> = self
+                        .finished_order
+                        .iter()
+                        .map(|index| (*index, *score_map.get(index).unwrap()))
+                        .collect();
+                    return Some(Stage::Ended(Some(result)));
+                }
+            }
+        } else if let Some(GameMode::OneVsThree(block_index)) = &self.mode {
+            if !self.finished_order.is_empty() {
+                let mut team_two: Vec<usize> = Vec::from(&[0, 1, 2, 3]);
+                team_two.retain(|x| x != block_index);
+
+                let mut result = Vec::new();
+                if *block_index == self.finished_order[0] {
+                    result.push((*block_index, self.base * 3 * 3 * self.multiplayer));
+                    result.push((team_two[0], -self.base * 3 * self.multiplayer));
+                    result.push((team_two[1], -self.base * 3 * self.multiplayer));
+                    result.push((team_two[2], -self.base * 3 * self.multiplayer));
+                } else {
+                    result.push((team_two[0], self.base * 3 * self.multiplayer));
+                    result.push((team_two[1], self.base * 3 * self.multiplayer));
+                    result.push((team_two[2], self.base * 3 * self.multiplayer));
+                    result.push((*block_index, -self.base * 3 * 3 * self.multiplayer));
+                }
+                return Some(Stage::Ended(Some(result)));
+            }
         }
         None
     }

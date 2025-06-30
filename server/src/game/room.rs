@@ -1,11 +1,11 @@
 use crate::game_server::{RenetGameServer, RenetServerWithConfig};
 use bincode::config::Configuration;
-use log::info;
+use log::{error, info};
 use renet2::{ClientId, RenetServer};
 use shared::cards::{Card, Deck};
 use shared::error::RoomServiceError;
 use shared::event::GameEvent;
-use shared::the_hidden_card::state::GameState;
+use shared::the_hidden_card::state::{GameState, Stage};
 use shared::{Player, Reducer};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
@@ -86,6 +86,18 @@ impl Room {
                     let caller_index = r!(self.game_state.get_caller_index());
                     let event = GameEvent::ToCallCardStage(caller_index);
                     self.process_event(event, server);
+                }
+            }
+            GameEvent::Pass(_) | GameEvent::PlayCards(_, _) => {
+                if let Some(stage) = self.game_state.game_end_check() {
+                    if let Stage::Ended(result) = stage {
+                        if let Some(result) = result {
+                            let event = GameEvent::GameEnd(result);
+                            self.process_event(event, server);
+                        } else {
+                            error!("Game end with error");
+                        }
+                    }
                 }
             }
             _ => {},
@@ -287,7 +299,7 @@ impl Rooms {
         server: &mut RenetServerWithConfig,
     ) -> Result<(), RoomServiceError> {
         match event {
-            GameEvent::SyncState(_) => {
+            GameEvent::SyncState(_) | GameEvent::GameEnd(_) => {
                 // 阻止非法事件
                 Err(RoomServiceError::ActionNotAllowed)
             }

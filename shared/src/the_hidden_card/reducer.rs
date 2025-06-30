@@ -50,6 +50,9 @@ impl Reducer<GameEvent, GameError> for GameState {
                 let seat = r!(self.get_seat_mut_by_id(client_id.clone()));
                 seat.player_connected = false;
             },
+            GameEnd(result) => {
+                self.stage = Stage::Ended(Some(result.clone()));
+            }
             PlayerConnected(client_id) => {
                 let seat = r!(self.get_seat_mut_by_id(client_id.clone()));
                 seat.player_connected = true;
@@ -116,6 +119,9 @@ impl Reducer<GameEvent, GameError> for GameState {
                 matches!(self.stage, Stage::PlayCards)
                     && Some(seat_index.clone()) == self.current_player_seat
             },
+            GameEnd(_) => {
+                true
+            }
             PlayerDisconnected(_) => true,
             SyncState(_) => true,
             _ => {
