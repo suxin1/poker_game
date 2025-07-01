@@ -93,6 +93,9 @@ fn state_stage_control(
                 *is_play_card_popup_showed = true;
             }
         },
+        Stage::Ended(result) => {
+
+        }
         _ => {},
     }
 }
@@ -313,3 +316,5 @@ fn on_play_cards_button_click(
 
     cmds.trigger(MessageEvent(GameEvent::PlayCards(index, cards)));
 }
+
+// ====================== 结算 ======================

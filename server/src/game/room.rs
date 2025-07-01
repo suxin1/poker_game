@@ -183,7 +183,7 @@ pub struct Rooms {
     client_room_map: HashMap<ClientId, RoomId>,
 
     next_room_id: RoomId,
-    // TODO 销毁房间, 房间所有用户断开连接后立即销毁房间或60秒后销毁房间
+    // TODO 销毁房间, 房间所有用户断开连接后立即销毁房间或60秒后销毁房间或立即销毁
 }
 
 impl Rooms {

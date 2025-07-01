@@ -456,15 +456,18 @@ impl GameState {
 
     /// #### 关键出牌逻辑
     /// ⚠️做出改动后务必测试出牌逻辑，确保逻辑正确
-    /// 这里如果最后一名玩家出牌完成后，不将其加入已完成列表。因为在[`next_player`]中，下面的代码会导致无限循环：
+    ///
+    /// 这里如果最后一名玩家出牌完成后，不将其加入已完成列表。 因为在[`Self::next_player()`]中，下面的代码会导致无限循环：
     /// ```
-    ///         if self
-    ///             .finished_order
-    ///             .contains(&self.current_player_seat.unwrap())
-    ///         {
-    ///             self.next_player();
-    ///         }
+    /// fn next_player(&mut self) {
+    ///     if self.finished_order.contains(&self.current_player_seat.unwrap())
+    ///     {
+    ///         self.next_player();
+    ///     }
+    /// }
     /// ```
+    /// * `player_set_index` - 玩家座位索引
+    /// * `cards` - 玩家出牌
     pub fn play_cards(&mut self, player_set_index: usize, cards: Vec<Card>) -> Result<(), String> {
         let combo = Combination::analyze(cards.clone());
 
@@ -515,7 +518,6 @@ impl GameState {
 
     /// #### 关键出牌逻辑
     /// ⚠️做出改动后务必测试出牌逻辑，确保逻辑正确
-    /// TODO 最后一名玩家刚好出完牌时，这里会无限循环
     fn next_player(&mut self) {
         self.current_player_seat = match self.current_player_seat {
             Some(current) => Some((current + 1) % 4), // 循环递增

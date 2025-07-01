@@ -1,8 +1,8 @@
-//! 游戏事件处理与转发
-//! 注意⚠️：GameEvent 只能从服务器发出在从 receive_event_from_server 这个函数里面转发到本地系统
-//! 发送到服务器的 GameEvent 没有限制
+//! ### 游戏事件处理与转发
+//! 注意⚠️：服务器发出的 GameEvent 只能在 [receive_event_from_server()] 这个函数里面接受并转发到本地系统
+//!
+//! 发送到服务器的 GameEvent 没有限制，但因为安全原因部分事件会被服务器拦截
 
-use bevy::asset::ron::Error::Message;
 use bevy::prelude::*;
 use bevy_renet2::prelude::{RenetClient, ServerEvent, client_connected};
 use shared::event::GameEvent;
@@ -13,8 +13,7 @@ use crate::network::MessageEvent;
 use crate::prelude::{ClosePopupEvent, OpenPopupEvent};
 use crate::screens::ScreenState;
 use crate::theme::widget::{body_text, button_mid, card_display, text_base};
-use shared::the_hidden_card::prelude::*;
-use shared::{Player, Reducer};
+use shared::{Player};
 
 pub(crate) fn plugin(app: &mut App) {
     app.add_event::<GameEvent>();
