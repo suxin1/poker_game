@@ -30,7 +30,10 @@ fn handle_game_event(
 ) {
     for event in event_reader.read() {
         match event {
-            GameEvent::PlayCards(_, _) | GameEvent::SyncState(_) | GameEvent::Pass(_) => {
+            GameEvent::PlayCards(_, _)
+            | GameEvent::SyncState(_)
+            | GameEvent::Pass(_)
+            | GameEvent::Ready { client_id: _ } => {
                 if let Some(combo) = state.last_played_cards.clone() {
                     cmds.trigger(RenderTableHands(combo.to_vec_cards()));
                 } else {

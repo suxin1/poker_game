@@ -38,6 +38,7 @@ impl ThemeColor {
     pub const PRIMARY_PRESSED: Color = Color::srgba(0.500, 0.300, 0.500, 1.000);
     pub const PRIMARY_DISABLED: Color = Color::srgba(0.400, 0.200, 0.400, 1.000);
     pub const PRIMARY_TEXT: Color = Color::srgba(0.157, 0.157, 0.157, 1.000);
+    pub const PRIMARY_TEXT_LIGHT: Color = Color::srgba(1., 1., 1., 1.000);
 
     // Utility Color
     pub const SUCCESS: Color = Color::srgba_u8(186, 230, 55, 255);

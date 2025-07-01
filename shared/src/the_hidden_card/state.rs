@@ -118,8 +118,12 @@ impl PlayerSeat {
 
     fn reset(&mut self) {
         self.score = 0;
-        self.ready = false;
         self.hands.clear();
+        self.hands_ready = false;
+    }
+
+    fn reset_ready_state(&mut self) {
+        self.ready = false;
     }
 }
 
@@ -151,8 +155,6 @@ pub struct GameState {
     pub mode: Option<GameMode>,
     pub stage: Stage,
 
-    lead: Option<usize>,                    // 第一个出牌的人
-    the_hidden: Option<usize>,              // 隐藏队友
     pub current_player_seat: Option<usize>, // 当前出牌
     pub is_hidden_card_shown: bool,
 
@@ -178,8 +180,6 @@ impl Default for GameState {
             mode: None,
             stage: Stage::PreGame,
 
-            lead: None,
-            the_hidden: None,
             current_player_seat: None,
             last_played_cards: None,
             last_played_set_index: None,
@@ -190,7 +190,6 @@ impl Default for GameState {
             multiplayer: 1,
 
             finished_order: VecDeque::new(),
-            // history: Vec::new(),
         }
     }
 }
@@ -324,18 +323,21 @@ impl GameState {
     }
 
     /// 重置玩家席状态和游戏状态
-    fn reset(&mut self) {
+    pub fn prepare(&mut self) {
         self.seats.iter_mut().for_each(|set| set.reset());
-        self.lead = None;
-        self.the_hidden = None;
-        self.current_player_seat = None;
-        self.last_played_cards = None;
-        self.last_played_set_index = None;
-        self.is_hidden_card_shown = false;
-        self.finished_order.clear();
 
         self.mode = None;
-        self.stage = Stage::PreGame;
+        self.current_player_seat = None;
+        self.is_hidden_card_shown = false;
+        self.last_played_set_index = None;
+        self.last_played_cards = None;
+        self.table_score_counter = 0;
+        self.finished_order.clear();
+        self.multiplayer = 1;
+    }
+
+    pub fn reset_ready_state(&mut self) {
+        self.seats.iter_mut().for_each(|set| set.reset_ready_state());
     }
 
     /// 第一步：准备游戏，Stage::[PreGame, EndGame] 状态下可执行，执行后游戏进入发牌状态 Stage::DealCards
@@ -346,7 +348,7 @@ impl GameState {
     /// 2，洗牌
     /// 3，发牌
     fn prepare_game(&mut self) {
-        self.reset();
+        self.prepare();
         self.stage = Stage::PreGame;
     }
 
@@ -635,9 +637,9 @@ impl GameState {
                         self.seats[team_two[0]].score + self.seats[team_two[1]].score;
 
                     if team_one.contains(&last) {
-                        team_two_cards_num += self.seats[*last].score;
+                        team_two_cards_num += self.seats[*last].hands.len() as i32;
                     } else if team_two.contains(&last) {
-                        team_one_cards_num += self.seats[*last].score;
+                        team_one_cards_num += self.seats[*last].hands.len() as i32;
                     }
                     let score = self.base * self.multiplayer;
                     if team_one_cards_num > team_two_cards_num {
@@ -689,6 +691,12 @@ impl GameState {
         }
         None
     }
+
+    pub fn apply_score_result(&mut self, result: &Vec<(usize, i32)>) {
+        for (index, score) in result {
+            self.seats[*index].coins += score;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -703,8 +711,6 @@ mod tests {
         let state = GameState::default();
         assert_eq!(state.stage, Stage::PreGame);
         assert!(state.mode.is_none());
-        assert!(state.lead.is_none());
-        assert!(state.the_hidden.is_none());
         assert!(state.current_player_seat.is_none());
     }
 

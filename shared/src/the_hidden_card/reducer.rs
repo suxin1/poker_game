@@ -19,6 +19,7 @@ impl Reducer<GameEvent, GameError> for GameState {
                     return;
                 };
                 self.set_seat_to_ready(seat_index);
+                self.prepare();
             },
             ToDealCardStage => {
                 self.to_deal_cards_stage();
@@ -52,6 +53,8 @@ impl Reducer<GameEvent, GameError> for GameState {
             },
             GameEnd(result) => {
                 self.stage = Stage::Ended(Some(result.clone()));
+                self.apply_score_result(&result);
+                self.reset_ready_state();
             }
             PlayerConnected(client_id) => {
                 let seat = r!(self.get_seat_mut_by_id(client_id.clone()));
@@ -62,7 +65,6 @@ impl Reducer<GameEvent, GameError> for GameState {
             },
             _ => {},
         }
-        // self.add_history(event.clone());
     }
 
     fn dispatch(&mut self, event: &GameEvent) -> Result<(), GameError> {
@@ -86,7 +88,7 @@ impl Reducer<GameEvent, GameError> for GameState {
                 }
                 true
             },
-            ToDealCardStage => self.stage == Stage::PreGame,
+            ToDealCardStage => matches!(self.stage, Stage::PreGame) || matches!(self.stage, Stage::Ended(_)),
             DealCards { client_id, cards } => cards.len() == 13,
             DealCardsDone(client_id) => {
                 let Some(seat) = self.get_seat_by_id(client_id.clone()) else {

@@ -1,3 +1,4 @@
+use bevy::ui::NodeType::Border;
 use bevy_renet2::prelude::RenetClient;
 
 use crate::game::widget::prelude::*;
@@ -51,12 +52,12 @@ fn state_stage_control(
 ) {
     for event in event_reader.read() {
         match event {
-            // GameEvent::RoundUp { stage } => {
-            //     game_state.stage = *stage;
-            //     *is_ready_event_send = false;
-            //     *is_call_card_event_send = false;
-            //     *is_play_card_popup_showed = false;
-            // },
+            GameEvent::GameEnd(_) => {
+                *is_ready_event_send = false;
+                *is_call_card_event_send = false;
+                *is_play_card_popup_showed = false;
+                *is_result_popup_showed = false;
+            },
             GameEvent::PlayCards(index, _) | GameEvent::Pass(index) => {
                 // 出牌后重置弹窗状态，准备下一次出牌
                 if game_state.id_match_seat_index(local_player.id, *index) {
@@ -96,7 +97,14 @@ fn state_stage_control(
                 *is_play_card_popup_showed = true;
             }
         },
-        Stage::Ended(result) => {},
+        Stage::Ended(result) => {
+            if !*is_result_popup_showed {
+                if let Some(result) = result {
+                    cmds.trigger(ShowResultPopup(result));
+                    *is_result_popup_showed = true;
+                }
+            }
+        },
         _ => {},
     }
 }
@@ -324,20 +332,46 @@ fn show_result_popup(trigger: Trigger<ShowResultPopup>, mut cmds: Commands, stat
     cmds.trigger(OpenPopupEvent {
         blocking: true,
         content_builder: Box::new(move |parent| {
-            // let result = result.clone();
-            // let seats = seats.clone();
+            let result = result.clone();
+            let seats = seats.clone();
             let content = Children::spawn(SpawnWith(move |parent: &mut ChildSpawner| {
                 for (index, score) in result {
                     let player = &seats[index].player;
                     if let Some(player) = player {
                         parent.spawn((
-                            Node { ..default() },
+                            Node {
+                                width: Percent(100.),
+                                justify_content: JustifyContent::SpaceBetween,
+                                padding: UiRect::axes(Vw(1.0), Vw(0.5)),
+                                ..default()
+                            },
                             children![body_text(player.name.clone()), body_text(score.to_string())],
                         ));
                     }
                 }
             }));
-            parent.spawn(card_display(content, children![]));
+            parent.spawn(card_display(
+                children![(
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        width: Percent(100.),
+                        ..default()
+                    },
+                    content,
+                )],
+                children![button_mid("再玩一局", on_play_again_button_click)],
+            ));
         }),
     })
+}
+
+fn on_play_again_button_click(
+    _: Trigger<Pointer<Click>>,
+    mut cmds: Commands,
+    local_player: Res<Player>,
+) {
+    let event = GameEvent::Ready {
+        client_id: local_player.id,
+    };
+    cmds.trigger(MessageEvent(event));
 }

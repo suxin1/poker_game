@@ -5,6 +5,7 @@ pub(super) fn plugin(app: &mut App) {
     app.init_collection::<CardAssets>();
     app.init_collection::<IndicatorAsset>();
     app.init_collection::<SmallCardAssets>();
+    app.init_collection::<Icon64Assets>();
 }
 
 #[derive(AssetCollection, Resource, Clone)]
@@ -102,6 +103,29 @@ impl SmallCardAssets {
             (CardValue::King, Suit::Hearts) => 51,
         }
     }
+}
+
+#[derive(AssetCollection, Resource)]
+pub(crate) struct Icon64Assets {
+    #[asset(texture_atlas_layout(tile_size_x = 64, tile_size_y = 64, columns = 1, rows = 1))]
+    icon_layout: Handle<TextureAtlasLayout>,
+
+    #[asset(path = "images/icon64.png")]
+    icons: Handle<Image>
+}
+
+impl Icon64Assets {
+    pub fn image_node(&self, index: usize) -> ImageNode {
+        ImageNode::from_atlas_image(
+            self.icons.clone(),
+            TextureAtlas {
+                index,
+                layout: self.icon_layout.clone(),
+            }
+        )
+    }
+
+    pub const COIN: usize = 0;
 }
 
 

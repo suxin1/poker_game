@@ -36,6 +36,8 @@ pub(super) fn plugin(app: &mut App) {
     app.init_resource::<SelectedCards>();
     // 移除已经成功出的牌
     app.add_observer(remove_selected_cards);
+    // 清除手牌
+    app.add_observer(clear_hands);
 }
 
 fn handle_update_hands_event(
@@ -47,6 +49,9 @@ fn handle_update_hands_event(
     use GameEvent::*;
     for event in event_reader.read() {
         match event {
+            ToDealCardStage => {
+                cmds.trigger(ClearHands);
+            }
             DealCards { client_id, cards } => {
                 if local_player.id == *client_id && matches!(game_state.stage, Stage::DealCards) {
                     cmds.trigger(RenderLocalHandsWithAnime(cards.clone()));
@@ -75,6 +80,9 @@ struct RenderLocalHandsWithAnime(Vec<Card>);
 
 #[derive(Event)]
 struct RenderLocalHandsImmediately(Vec<Card>);
+
+#[derive(Event)]
+struct ClearHands;
 
 pub fn hands_view() -> impl Bundle {
     (
@@ -118,6 +126,17 @@ fn render_hands_immediately(
     }
 }
 
+fn clear_hands(
+    _: Trigger<ClearHands>,
+    mut cmds: Commands,
+    mut hands_entity_query: Query<&Children, With<HandsRow>>,
+) {
+    let children = r!(hands_entity_query.single());
+    for child in children.iter() {
+        cmds.entity(child).despawn();
+    }
+}
+
 // ====================== 发牌动画 ======================
 #[derive(Resource)]
 struct CardDealerMachine {
@@ -139,15 +158,16 @@ fn card_dealer_system(
     time: Res<Time>,
     card_assets: Res<CardAssets>,
     mut dealer_machine: ResMut<CardDealerMachine>,
-    mut hands_entity_query: Query<(Entity, &mut Children), With<HandsRow>>,
+    mut hands_entity_query: Query<Entity, With<HandsRow>>,
     mut cards_data_query: Query<&CardData>,
+    mut children_query: Query<&mut Children>,
     mut client: ResMut<RenetClient>,
     local_player: Res<Player>,
     bincode_config: Res<BincodeConfig>,
 ) {
     if dealer_machine.timer.tick(time.delta()).just_finished() {
         if let Some(mut cards) = dealer_machine.cards.take() {
-            let (entity, mut children) = r!(hands_entity_query.single_mut());
+            let entity = r!(hands_entity_query.single_mut());
             if let Some(card) = cards.pop() {
                 dealer_machine.cards = Some(cards);
                 dealer_machine.timer.reset();
@@ -161,11 +181,14 @@ fn card_dealer_system(
                 });
             } else {
                 // 卡牌排序
-                children.sort_by(|a, b| {
-                    let a = cards_data_query.get(a.clone()).unwrap();
-                    let b = cards_data_query.get(b.clone()).unwrap();
-                    b.0.cmp(&a.0)
-                });
+                if let Ok(mut children) = children_query.get_mut(entity) {
+                    children.sort_by(|a, b| {
+                        let a = cards_data_query.get(a.clone()).unwrap();
+                        let b = cards_data_query.get(b.clone()).unwrap();
+                        b.0.cmp(&a.0)
+                    });
+                }
+
                 dealer_machine.cards = None;
                 client.send_message(
                     0,

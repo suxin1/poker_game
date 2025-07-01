@@ -1,5 +1,5 @@
 use crate::animation::ui_sprite_animation::{AnimationIndices, AnimationTimer};
-use crate::game::assets::{CardAssets, IndicatorAsset, SmallCardAssets};
+use crate::game::assets::{CardAssets, Icon64Assets, IndicatorAsset, SmallCardAssets};
 use crate::game::hidden_card::level::{LevelUiRoot, spawn_level};
 pub use crate::game::widget::prelude::*;
 use crate::prelude::*;
@@ -29,6 +29,8 @@ pub(super) fn plugin(app: &mut App) {
     );
 }
 
+// ====================== 坐席显示 ======================
+
 #[derive(Component)]
 struct CollectedCardsCounter;
 
@@ -38,6 +40,11 @@ struct CalledCardDisplay;
 #[derive(Component)]
 struct TeamIndicator;
 
+#[derive(Component)]
+struct CoinDisplay;
+
+const COIN_FONT_BOX_HEIGHT: Val = Val::Vw(3.0);
+
 fn setup_seat_view(
     mut cmds: Commands,
     mut ui_root: Query<Entity, With<LevelUiRoot>>,
@@ -45,6 +52,7 @@ fn setup_seat_view(
     assets: Res<IndicatorAsset>,
     card_assets: Res<CardAssets>,
     small_card_assets: Res<SmallCardAssets>,
+    icon_64: Res<Icon64Assets>,
 ) {
     let ui_root = r!(ui_root.single());
 
@@ -80,10 +88,10 @@ fn setup_seat_view(
             SeatPosition::Top,
             Node {
                 position_type: PositionType::Absolute,
-                bottom: Val::Px(-32.),
+                left: Px(-32.),
                 ..default()
             },
-            Quat::IDENTITY, // 无旋转
+            Quat::from_rotation_z(PI / 2.), // 无旋转
             SEAT_COLOR[2],
         ),
         (
@@ -174,27 +182,50 @@ fn setup_seat_view(
                                     shared::cards::CardValue::Ace,
                                 )),
                             ));
-                            // 队伍显示
+                            // 队伍指示器
                             parent.spawn((
                                 Node {
-                                    height: Vw(0.5),
-                                    width: Percent(40.),
-                                    bottom: if matches!(position, SeatPosition::Top) {
-                                        Auto
-                                    } else {
-                                        Vw(-0.8)
-                                    },
-                                    top: if matches!(position, SeatPosition::Top) {
-                                        Vw(-0.8)
-                                    } else {
-                                        Auto
-                                    },
+                                    height: Vw(1.6),
+                                    width: Vw(1.6),
+                                    top: Vw(0.5),
+                                    right: Vw(0.5),
                                     ..Node::DEFAULT.abs()
                                 },
                                 TeamIndicator,
-                                BorderRadius::MAX,
+                                BorderRadius::all(Vw(0.6)),
                                 Visibility::Hidden,
                                 BackgroundColor(Color::WHITE),
+                                BoxShadow::from(ShadowStyle {
+                                    color: Color::srgba(0.1, 0.1, 0.1, 0.5),
+                                    blur_radius: Vw(0.3),
+                                    spread_radius: Vw(0.5),
+                                    x_offset: Vw(0.),
+                                    y_offset: Vw(0.),
+                                    ..default()
+                                }),
+                            ));
+                            parent.spawn((
+                                Node {
+                                    width: Percent(100.),
+                                    height: COIN_FONT_BOX_HEIGHT,
+                                    bottom: -COIN_FONT_BOX_HEIGHT,
+                                    justify_content: JustifyContent::Start,
+                                    align_items: AlignItems::Center,
+                                    column_gap: Vw(1.),
+                                    ..Node::DEFAULT.abs()
+                                },
+                                CoinDisplay,
+                                children![
+                                    (
+                                        Node {
+                                            width: Vw(2.5),
+                                            height: Vw(2.5),
+                                            ..default()
+                                        },
+                                        icon_64.image_node(Icon64Assets::COIN)
+                                    ),
+                                    text_base("0", Vw(2.4), ThemeColor::PRIMARY_TEXT_LIGHT),
+                                ],
                             ));
                         });
                 }
@@ -246,7 +277,8 @@ fn handle_seat_update_event(
             | GameEvent::CallCard {
                 seat_index: _,
                 card: _,
-            } => {
+            }
+            | GameEvent::ToDealCardStage => {
                 if *is_seat_position_map_available {
                     cmds.trigger(RunSeatUpdate);
                 }
@@ -269,15 +301,14 @@ fn handle_seat_update_event(
 
 fn update_player_seat(
     _: Trigger<RunSeatUpdate>,
-    mut cmds: Commands,
     mut seats_query: Query<(Entity, &Children, &SeatPosition), With<SeatPosition>>,
     mut player_avatar_query: Query<Entity, With<PlayerAvatarBox>>,
-
     mut player_name_query: Query<&PlayerNameText>,
     mut cards_counter_query: Query<&CollectedCardsCounter>,
     mut called_card_display: Query<&CalledCardDisplay>,
     mut indicator_query: Query<&ArrowIndicator>,
     mut team_indicator: Query<&TeamIndicator>,
+    mut coin_display: Query<&CoinDisplay>,
 
     mut background_query: Query<&mut BackgroundColor>,
     mut visibility_query: Query<&mut Visibility>,
@@ -315,6 +346,16 @@ fn update_player_seat(
                 }
             }
 
+            if let Ok(_) = coin_display.get(child) {
+                for children in children_query.get(child) {
+                    for child in children.iter() {
+                        if let Ok(mut text) = text_query.get_mut(child) {
+                            **text = seat.coins.to_string();
+                        }
+                    }
+                }
+            }
+
             if let Ok(_) = indicator_query.get(child) {
                 if let Ok(mut visibility) = visibility_query.get_mut(child) {
                     *visibility =
@@ -337,13 +378,8 @@ fn update_player_seat(
 
             if let Ok(_) = called_card_display.get(child) {
                 let mut call_card_visibility = visibility_query.get_mut(child).unwrap();
-                let mut image_node = image_node_query
-                    .get_mut(child)
-                    .unwrap();
-                let call_card_image_atlas = image_node
-                    .texture_atlas
-                    .as_mut()
-                    .unwrap();
+                let mut image_node = image_node_query.get_mut(child).unwrap();
+                let call_card_image_atlas = image_node.texture_atlas.as_mut().unwrap();
 
                 if let Some(GameMode::HiddenAllies {
                     caller,
@@ -433,12 +469,13 @@ impl SeatPosition {
     ];
 }
 
+const SEAT_SCREEN_DISTANCE: Val = Px(8.);
 impl SeatPosition {
     pub fn get_layout(&self) -> AbsolutePosition {
         match self {
             SeatPosition::Bottom => AbsolutePosition {
-                bottom: Vw(1.5),
-                left: Px(8.),
+                bottom: Vw(3.),
+                left: SEAT_SCREEN_DISTANCE,
                 top: Val::Auto,
                 right: Val::Auto,
             },
@@ -446,17 +483,17 @@ impl SeatPosition {
                 bottom: Val::Auto,
                 left: Val::Auto,
                 top: Val::Auto,
-                right: Px(8.),
+                right: SEAT_SCREEN_DISTANCE,
             },
             SeatPosition::Top => AbsolutePosition {
                 bottom: Val::Auto,
                 left: Val::Auto,
-                top: Vw(1.5),
+                top: SEAT_SCREEN_DISTANCE,
                 right: Val::Auto,
             },
             SeatPosition::Left => AbsolutePosition {
                 bottom: Val::Auto,
-                left: Val::Px(8.),
+                left: SEAT_SCREEN_DISTANCE,
                 top: Val::Auto,
                 right: Val::Auto,
             },
