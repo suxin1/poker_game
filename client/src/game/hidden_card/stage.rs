@@ -35,6 +35,8 @@ pub(super) fn plugin(app: &mut App) {
     app.add_observer(show_call_card_popup);
 
     app.add_observer(show_play_card_popup);
+
+    app.add_observer(show_result_popup);
 }
 
 fn state_stage_control(
@@ -45,6 +47,7 @@ fn state_stage_control(
     mut is_ready_event_send: Local<bool>, // 是否发送了准备事件
     mut is_call_card_event_send: Local<bool>, // 是否发送了叫牌事件
     mut is_play_card_popup_showed: Local<bool>,
+    mut is_result_popup_showed: Local<bool>,
 ) {
     for event in event_reader.read() {
         match event {
@@ -63,8 +66,8 @@ fn state_stage_control(
             _ => {},
         }
     }
-
-    match game_state.stage {
+    let stage = game_state.stage.clone();
+    match stage {
         Stage::PreGame => {
             let seat = r!(game_state.get_seat_by_id(local_player.id));
             if !seat.ready && !*is_ready_event_send {
@@ -93,9 +96,7 @@ fn state_stage_control(
                 *is_play_card_popup_showed = true;
             }
         },
-        Stage::Ended(result) => {
-
-        }
+        Stage::Ended(result) => {},
         _ => {},
     }
 }
@@ -253,12 +254,7 @@ fn on_call_card_click(
 #[derive(Event)]
 struct ShowPlayCardPopup;
 
-fn show_play_card_popup(
-    _: Trigger<ShowPlayCardPopup>,
-    mut cmds: Commands,
-    mut selected_cards: ResMut<SelectedCards>,
-    state: Res<GameState>,
-) {
+fn show_play_card_popup(_: Trigger<ShowPlayCardPopup>, mut cmds: Commands, state: Res<GameState>) {
     let state = state.clone();
     cmds.trigger(OpenPopupEvent {
         blocking: false,
@@ -318,3 +314,30 @@ fn on_play_cards_button_click(
 }
 
 // ====================== 结算 ======================
+
+#[derive(Event)]
+struct ShowResultPopup(Vec<(usize, i32)>);
+
+fn show_result_popup(trigger: Trigger<ShowResultPopup>, mut cmds: Commands, state: Res<GameState>) {
+    let result = trigger.event().0.clone();
+    let seats = state.get_seats().clone();
+    cmds.trigger(OpenPopupEvent {
+        blocking: true,
+        content_builder: Box::new(move |parent| {
+            // let result = result.clone();
+            // let seats = seats.clone();
+            let content = Children::spawn(SpawnWith(move |parent: &mut ChildSpawner| {
+                for (index, score) in result {
+                    let player = &seats[index].player;
+                    if let Some(player) = player {
+                        parent.spawn((
+                            Node { ..default() },
+                            children![body_text(player.name.clone()), body_text(score.to_string())],
+                        ));
+                    }
+                }
+            }));
+            parent.spawn(card_display(content, children![]));
+        }),
+    })
+}
