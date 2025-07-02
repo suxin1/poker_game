@@ -73,7 +73,7 @@ tracing = { version = "0.1", features = [
 
 # Dev tools
 bevy-inspector-egui = { version = "0.31", optional = true, default-features = false, features = ["bevy_render"]}
-fake = {version = "3.1", optional = true}
+fake = {version = "4.3", optional = true}
 
 # Your web builds will start failing if you add a dependency that pulls in `getrandom` v0.3+.
 # To fix this, you should tell `getrandom` to use the `wasm_js` backend on Wasm.
@@ -91,13 +91,13 @@ web-time = "1.1.0"
 
 [features]
 # Default to a native dev build.
-default = ["dev_native"]
+default = ["web"]
 web = [
-    "bevy/dynamic_linking",
-    "bevy/bevy_dev_tools",
-    "bevy/bevy_ui_debug",
+#    "bevy/bevy_dev_tools",
+#    "bevy/bevy_ui_debug",
     "bevy_renet2/ws_client_transport",
-    "bevy/web"
+    "bevy/web",
+    "dep:fake"
 ]
 dev = [
     # Improve compile times for dev builds by linking Bevy as a dynamic library.
@@ -106,8 +106,8 @@ dev = [
     "bevy/bevy_ui_debug",
     # Improve error messages coming from Bevy
     "bevy/track_location",
-    "fake",
-    "dep:bevy-inspector-egui"
+    "dep:bevy-inspector-egui",
+    "dep:fake"
 ]
 
 dev_native = [

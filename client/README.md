@@ -66,6 +66,7 @@ bevy run
 bevy run web
 bevy run --release
 bevy run --release web
+cargo binstall --locked --no-confirm --force wasm-bindgen-cli
 ```
 
 For VS Code users, [`.vscode/tasks.json`](./.vscode/tasks.json) provides IDE integration.

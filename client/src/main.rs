@@ -16,7 +16,7 @@ mod utils;
 mod network;
 mod game;
 
-#[cfg(feature = "dev")]
+// #[cfg(feature = "dev")]
 mod fake_player;
 mod plugin;
 
@@ -34,7 +34,7 @@ impl Plugin for AppPlugin {
 
         // Add other plugins.
         app.add_plugins((
-            #[cfg(feature = "dev")]
+            // #[cfg(feature = "dev")]
             fake_player::plugin,
 
             asset_tracking::plugin,

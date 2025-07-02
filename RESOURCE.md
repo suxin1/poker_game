@@ -16,3 +16,7 @@ matchbox: https://github.com/johanhelsing/matchbox?tab=readme-ov-file
 
 ### 回合制游戏设计：
 https://herluf-ba.github.io/making-a-turn-based-multiplayer-game-in-rust-01-whats-a-turn-based-game-anyway.html
+
+### Rust
+* rust 语言教程：https://rustlang.org/learn
+* 文档：https://doc.rust-lang.org/rustdoc/what-is-rustdoc.html

@@ -19,6 +19,13 @@ bacon run
 1. 禁用动态连接
 2. 参考这里的[解决方法](https://www.reddit.com/r/bevy/comments/198fu1z/getting_dynamic_linking_debugging_to_work_in/)
 
+### 构建 client web端
+安装[bevy cli](https://github.com/TheBevyFlock/bevy_cli)，编译完打包完成后的文件在`target/bevy_web/web-release/client`。
+```
+cargo binstall --locked --no-confirm --force wasm-bindgen-cli
+cargo binstall --locked --no-confirm --force wasm-opt
+bevy build --locked --release --features='web' --yes web --bundle
+```
 ### Bacon 
 [Bacon](https://dystroy.org/bacon/config/#job-properties) 是一个 Rust 开发工具，详细用法查看[文档](https://dystroy.org/bacon/config/#job-properties)。
 bacon.toml 是Bacon的默认配置文件，在有该文件的目录下，命令行中输入 `bacon`启动。

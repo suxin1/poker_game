@@ -20,8 +20,14 @@ pub(super) fn plugin(app: &mut App) {
     use web_time::SystemTime;
 
     let args = std::env::args().collect::<Vec<String>>();
-    let s = if args.len() > 1 {&args[1]} else {
-        &env::var("TEST_ID").unwrap()
+    let s = if args.len() > 1 {args[1].clone()} else {
+        env::var("TEST_ID").unwrap_or_else(|_| {
+            let current_time = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap();
+            let client_id = current_time.as_millis() as u64;
+            client_id.to_string()
+        })
     };
     let client_id = s.parse::<u64>().unwrap();
 
