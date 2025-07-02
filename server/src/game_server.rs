@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use bincode::{config::Configuration, serde::decode_from_slice};
 use log::{error, info, trace};
-use renet2::{ClientId, ConnectionConfig, RenetServer, ServerEvent};
+use renet2::{ClientId, ConnectionConfig, DefaultChannel, RenetServer, ServerEvent};
 use renet2_netcode::NetcodeServerTransport;
 
 use crate::game::Rooms;
@@ -67,7 +67,11 @@ pub struct RenetGameServer {
 impl RenetGameServer {
     pub fn with_transport(transport: NetcodeServerTransport) -> Self {
         let bincode_config = bincode::config::standard();
-        let server = RenetServer::new(ConnectionConfig::default());
+        let server = RenetServer::new(ConnectionConfig {
+            available_bytes_per_tick: 60_000,
+            server_channels_config: DefaultChannel::config(),
+            client_channels_config: DefaultChannel::config(),
+        });
         Self {
             bincode_config,
             server: RenetServerWithConfig {

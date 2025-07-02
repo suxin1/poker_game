@@ -5,7 +5,7 @@ use web_time::SystemTime;
 use bevy_http_client::HttpClient;
 use bevy_http_client::prelude::{HttpTypedRequestTrait, TypedRequest, TypedResponse};
 use bevy_renet2::netcode::{ClientAuthentication, NETCODE_USER_DATA_BYTES};
-use bevy_renet2::prelude::{ConnectionConfig, RenetClient, client_disconnected};
+use bevy_renet2::prelude::{ConnectionConfig, RenetClient, client_disconnected, ChannelConfig, DefaultChannel};
 use renet2_netcode::{
     NetcodeClientTransport, NetcodeTransportError, ServerCertHash, WebServerDestination,
 };
@@ -44,7 +44,11 @@ pub(super) fn create_renet_client(
         };
 
         let socket = WebSocketClient::new(socket_config).unwrap();
-        let client = RenetClient::new(ConnectionConfig::default(), socket.is_reliable());
+        let client = RenetClient::new(ConnectionConfig {
+            available_bytes_per_tick: 60_000,
+            server_channels_config: DefaultChannel::config(),
+            client_channels_config: DefaultChannel::config(),
+        }, socket.is_reliable());
 
         let client_auth = ClientAuthentication::Unsecure {
             client_id: client_id as u64,
