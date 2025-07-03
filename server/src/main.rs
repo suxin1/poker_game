@@ -58,13 +58,9 @@ fn main() {
     let max_clients = env::var("MAX_CLIENT").unwrap().parse::<usize>().unwrap();
     let http_addr = env::var("HTTP_SERVER_ADDR").unwrap().parse::<SocketAddr>().unwrap();
 
-    let native_socket_addr: SocketAddr = "127.0.0.1:8081".parse().unwrap();
-    let wt_socket_addr: SocketAddr = "127.0.0.1:8082".parse().unwrap();
-    let ws_socket_addr: SocketAddr = "127.0.0.1:8083".parse().unwrap();
-
-    // let native_socket_addr: SocketAddr = "127.0.0.1:8081".parse().unwrap();
-    // let wt_socket_addr: SocketAddr = "127.0.0.1:8082".parse().unwrap();
-    // let ws_socket_addr: SocketAddr = "127.0.0.1:8083".parse().unwrap();
+    let native_socket_addr: SocketAddr = env::var("NATIVE_SOCKET_ADDR").unwrap().parse().unwrap();
+    let wt_socket_addr: SocketAddr = env::var("WT_SOCKET_ADDR").unwrap().parse().unwrap();
+    let ws_socket_addr: SocketAddr = env::var("WEB_SOCKET_ADDR").unwrap().parse().unwrap();
 
     // Native socket
     let native_socket = NativeSocket::new(UdpSocket::bind(native_socket_addr).unwrap()).unwrap();
