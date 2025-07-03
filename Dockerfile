@@ -24,11 +24,11 @@ RUN cargo build --bin server --release
 FROM alpine AS runtime
 
 ENV RUST_LOG=error \
-    MAX_CLIENT = "60" \
-    HTTP_SERVER_ADDR = "[::]:8080" \
-    NATIVE_SOCKET_ADDR = "[::]:8081" \
-    WT_SOCKET_ADDR = "[::]:8082" \
-    WEB_SOCKET_ADDR = "[::]:8083" \
+    MAX_CLIENT="60" \
+    HTTP_SERVER_ADDR="[::]:8080" \
+    NATIVE_SOCKET_ADDR="[::]:8081" \
+    WT_SOCKET_ADDR="[::]:8082" \
+    WEB_SOCKET_ADDR="[::]:8083" \
 
 WORKDIR /app
 COPY --from=builder /app/target/release/server /usr/local/bin
