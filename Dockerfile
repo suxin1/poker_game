@@ -1,6 +1,13 @@
 FROM lukemathwalker/cargo-chef:latest-rust-1.88.0-alpine3.21 AS chef
 WORKDIR /app
 
+# 更换 Cargo 源为 USTC 镜像
+RUN echo '[source.crates-io]' > /usr/local/cargo/config \
+    && echo 'replace-with = "ustc"' >> /usr/local/cargo/config \
+    && echo '' >> /usr/local/cargo/config \
+    && echo '[source.ustc]' >> /usr/local/cargo/config \
+    && echo 'registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"' >> /usr/local/cargo/config
+
 FROM chef AS planner
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
