@@ -12,8 +12,14 @@ use bevy::prelude::*;
 pub use init::{MessageEvent};
 
 pub const PROTOCOL_ID: u64 = 7;
+pub const SERVER_PORT: &str = "8080";
 
-pub const SERVER_ADDR: &str = "127.0.0.1:8080";
+#[cfg(feature = "dev")]
+pub const SERVER_ADDR: &str = "http://127.0.0.1";
+
+#[cfg(not(feature = "dev"))]
+pub const SERVER_ADDR: &str = "http://www.wasdqe.top";
+// pub const SERVER_ADDR: &str = "http://[240e:331:e00:139:a236:bcff:fe23:ead]";
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((http_client::plugin, renet2::plugin, init::plugin));

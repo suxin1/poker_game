@@ -20,7 +20,9 @@ pub(super) fn create_renet_client(
     user: &Player,
     client_connection_info: ClientConnectionInfo,
 ) -> anyhow::Result<(RenetClient, NetcodeClientTransport)> {
+
     let server_addr: SocketAddr = client_connection_info.native_addr.parse()?;
+
     let socket = NativeSocket::new(UdpSocket::bind("127.0.0.1:0")?).unwrap();
 
     let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;

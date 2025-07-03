@@ -11,7 +11,7 @@ use renet2_netcode::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::network::PROTOCOL_ID;
+use crate::network::{PROTOCOL_ID, SERVER_ADDR};
 use renet2_netcode::{
     ClientSocket, WebSocketClient, WebSocketClientConfig, WebTransportClient,
     WebTransportClientConfig, webtransport_is_available_with_cert_hashes,
@@ -39,8 +39,11 @@ pub(super) fn create_renet_client(
     user_data[8..username.len() + 8].copy_from_slice(username.as_bytes());
 
     let (client, transport) = {
+        let mut url = client_connection_info.ws_url.clone();
+        let _ = url.set_host(Some(SERVER_ADDR));
+
         let socket_config = WebSocketClientConfig {
-            server_url: client_connection_info.ws_url.clone(),
+            server_url: url,
         };
 
         let socket = WebSocketClient::new(socket_config).unwrap();

@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use std::ops::Deref;
 
+use crate::network::{SERVER_ADDR, SERVER_PORT};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::network::native::create_renet_client;
 use crate::screens::ScreenState;
@@ -52,7 +53,7 @@ fn send_request(mut event_request: EventWriter<TypedRequest<ClientConnectionInfo
     info!("send request");
     event_request.write(
         HttpClient::new()
-            .get("http://127.0.0.1:8080/info")
+            .get(format!("{}:{}/info", SERVER_ADDR, SERVER_PORT))
             .with_type::<ClientConnectionInfo>(),
     );
 }
