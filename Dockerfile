@@ -21,7 +21,7 @@ COPY . .
 RUN cargo build --bin server --release
 
 # We do not need the Rust toolchain to run the binary!
-FROM debian:bookworm-slim AS runtime
+FROM alpine AS runtime
 WORKDIR /app
 COPY --from=builder /app/target/release/server /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/server"]
