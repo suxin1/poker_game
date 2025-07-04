@@ -1,0 +1,66 @@
+# echo "htpasswd -nb suxin 00000000." > /home/suxin/traefik/users #创建 traefik认证文件
+# chmod 600 /home/suxin/traefik/users
+version: '3.8'
+services:
+  traefik:
+    container_name: traefik
+    image: docker.io/library/traefik:latest
+    networks:
+      - podman
+    security_opt:
+      - label=type:container_runtime_t
+    volumes:
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock
+      - /home/suxin/traefik/acme.json:/acme.json
+      - /home/suxin/traefik/users:/etc/traefik/users  # 认证文件
+    ports:
+      - "1080:1080"
+      - "1443:1443"
+    command:
+      - --api.dashboard=true
+      - --api.insecure=false
+      - --certificatesresolvers.lets-encrypt.acme.email=qazwsxrrrrr@outlook.com
+      - --certificatesresolvers.lets-encrypt.acme.storage=/acme.json
+      - --certificatesresolvers.lets-encrypt.acme.tlschallenge=true
+      - --entrypoints.http.address=:1080
+      - --entrypoints.http.http.redirections.entryPoint.to=https
+      - --entrypoints.http.http.redirections.entryPoint.scheme=https
+      - --entrypoints.https.address=:1443
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false  # 仅暴露显式启用的服务
+    labels:
+      # 安全暴露 Dashboard (使用你的真实域名替换 `traefik.example.com`)
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik_https.rule=Host(`wasdqe.top`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.traefik_https.service=api@internal"
+      - "traefik.http.routers.traefik_https.entrypoints=https"
+      - "traefik.http.routers.traefik_https.tls=true"
+      - "traefik.http.routers.traefik_https.tls.certResolver=lets-encrypt"
+      # 启用 BasicAuth 认证
+      - "traefik.http.routers.traefik_https.middlewares=basic-auth-global"
+      - "traefik.http.middlewares.basic-auth-global.basicauth.users=admin:{SHA}cDUvQQYe2k/zwyIJSvBounDDs4s="
+
+  # 添加 Nginx 服务托管静态内容
+  static-server:
+    image: nginx:alpine
+    container_name: static-server
+    networks:
+      - podman
+    volumes:
+      - /home/suxin/web/games:/usr/share/nginx/html:ro
+      - /home/suxin/deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.static.rule=Host(`game.wasdqe.top`) && PathPrefix(`/games`)"
+      - "traefik.http.routers.static.entrypoints=https"
+      - "traefik.http.routers.static.tls=true"
+      - "traefik.http.routers.static.tls.certResolver=lets-encrypt"
+      - "traefik.http.services.static.loadbalancer.server.port=80"
+
+      # 动态路径处理中间件
+      - "traefik.http.routers.static.middlewares=strip-path"
+      - "traefik.http.middlewares.strip-path.stripprefix.prefixes=/games"
+networks:
+  podman:
+    name: podman
+    external: true  # 使用已存在的网络
