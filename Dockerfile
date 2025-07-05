@@ -25,11 +25,12 @@ FROM alpine AS runtime
 
 ENV RUST_LOG=error \
     MAX_CLIENT="60" \
-    HTTP_SERVER_ADDR="[::]:8080" \
-    NATIVE_SOCKET_ADDR="[::]:8081" \
+    HTTP_SERVER_ADDR="[::]:8081" \
+    NATIVE_SOCKET_ADDR="[::]:8082" \
     WT_SOCKET_ADDR="[::]:8082" \
-    WEB_SOCKET_ADDR="[::]:8083"
+    WEB_SOCKET_ADDR="[::]:8085"
 
 WORKDIR /app
 COPY --from=builder /app/target/release/server /usr/local/bin
+EXPOSE 8081 8082 8083 8084
 ENTRYPOINT ["/usr/local/bin/server"]
