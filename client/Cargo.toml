@@ -91,7 +91,7 @@ web-time = "1.1.0"
 
 [features]
 # Default to a native dev build.
-default = ["web"]
+default = ["dev_native"]
 web = [
 #    "bevy/bevy_dev_tools",
 #    "bevy/bevy_ui_debug",

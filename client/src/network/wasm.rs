@@ -11,7 +11,7 @@ use renet2_netcode::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::network::{PROTOCOL_ID, SERVER_ADDR};
+use crate::network::{PROTOCOL_ID, SERVER_ADDR, WS_URL};
 use renet2_netcode::{
     ClientSocket, WebSocketClient, WebSocketClientConfig, WebTransportClient,
     WebTransportClientConfig, webtransport_is_available_with_cert_hashes,
@@ -23,7 +23,6 @@ use crate::network::init::ClientConnectionInfo;
 
 pub(super) fn create_renet_client(
     user: &Player,
-    client_connection_info: ClientConnectionInfo,
 ) -> anyhow::Result<(RenetClient, NetcodeClientTransport)> {
     let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
@@ -39,9 +38,7 @@ pub(super) fn create_renet_client(
     user_data[8..username.len() + 8].copy_from_slice(username.as_bytes());
 
     let (client, transport) = {
-        let mut url = client_connection_info.ws_url.clone();
-        let _ = url.set_host(Some(SERVER_ADDR));
-
+        let url = url::Url::parse(WS_URL).unwrap();
         let socket_config = WebSocketClientConfig {
             server_url: url,
         };

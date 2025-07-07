@@ -12,14 +12,23 @@ use bevy::prelude::*;
 pub use init::{MessageEvent};
 
 pub const PROTOCOL_ID: u64 = 7;
-pub const SERVER_PORT: &str = "8080";
 
 #[cfg(feature = "dev")]
-pub const SERVER_ADDR: &str = "http://127.0.0.1";
-
+pub const SERVER_ADDR: &str = "http://127.0.0.1:8081";
 #[cfg(not(feature = "dev"))]
-pub const SERVER_ADDR: &str = "http://www.wasdqe.top";
-// pub const SERVER_ADDR: &str = "http://[240e:331:e00:139:a236:bcff:fe23:ead]";
+pub const SERVER_ADDR: &str = "http://poker_server.wasdqe.top:1080";
+
+#[cfg(all(target_arch = "wasm32", feature = "dev"))]
+pub const WS_URL: &str = "ws://poker_server.wasdqe.top:1447";
+
+#[cfg(all(target_arch = "wasm32"))]
+pub const WS_URL: &str = "ws://[::]:8085";
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "dev"))]
+pub const NATIVE_SOCKET_ADDR: &str = "[::]:8082";
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "dev")))]
+pub const NATIVE_SOCKET_ADDR: &str = "poker_server.wasdqe.top:1445";
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((http_client::plugin, renet2::plugin, init::plugin));

@@ -1,15 +1,16 @@
+use std::io;
 use bevy::prelude::*;
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::SystemTime;
 
-use crate::network::PROTOCOL_ID;
 use crate::network::init::ClientConnectionInfo;
+use crate::network::{NATIVE_SOCKET_ADDR, PROTOCOL_ID};
 use crate::screens::ScreenState;
 
 use bevy_http_client::prelude::{HttpTypedRequestTrait, TypedRequest, TypedResponse};
 use bevy_renet2::netcode::{ClientAuthentication, NETCODE_USER_DATA_BYTES};
 use bevy_renet2::prelude::{ConnectionConfig, DefaultChannel, RenetClient};
-use renet2_netcode::{NativeSocket, NetcodeClientTransport, ServerCertHash, WebServerDestination};
+use renet2_netcode::{ClientSocket, NativeSocket, NetcodeClientTransport, ServerCertHash, WebServerDestination};
 
 use serde::{Deserialize, Serialize};
 use shared::Player;
@@ -18,12 +19,15 @@ use shared::Player;
 // Returns an Err if connection fails
 pub(super) fn create_renet_client(
     user: &Player,
-    client_connection_info: ClientConnectionInfo,
 ) -> anyhow::Result<(RenetClient, NetcodeClientTransport)> {
-
-    let server_addr: SocketAddr = client_connection_info.native_addr.parse()?;
-
-    let socket = NativeSocket::new(UdpSocket::bind("127.0.0.1:0")?).unwrap();
+    // let server_addr: SocketAddr =
+    //     NATIVE_SOCKET_ADDR
+    //         .to_socket_addrs()?
+    //         .next()
+    //         .ok_or(io::Error::new(io::ErrorKind::Other, "Could not resolve address"))?;
+    let server_addr: SocketAddr = NATIVE_SOCKET_ADDR.parse()?;
+    info!("{:?}", server_addr);
+    let client_socket = NativeSocket::new(UdpSocket::bind("127.0.0.1:0")?).unwrap();
 
     let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
@@ -45,16 +49,17 @@ pub(super) fn create_renet_client(
         user_data: Some(user_data),
         protocol_id: PROTOCOL_ID,
     };
-    let mut transport = NetcodeClientTransport::new(current_time, authentication, socket)?;
     let client = RenetClient::new(
         ConnectionConfig {
-            // At 60hz this is becomes 28.8 Mbps
+            // At 60hz this is becoming 28.8 Mbps
             available_bytes_per_tick: 60_000,
             server_channels_config: DefaultChannel::config(),
             client_channels_config: DefaultChannel::config(),
         },
-        false,
+        client_socket.is_reliable(),
     );
+
+    let mut transport = NetcodeClientTransport::new(current_time, authentication, client_socket)?;
 
     Ok((client, transport))
 }

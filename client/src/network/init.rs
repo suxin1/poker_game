@@ -1,9 +1,9 @@
 use crate::prelude::*;
 use std::ops::Deref;
 
-use crate::network::{SERVER_ADDR, SERVER_PORT};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::network::native::create_renet_client;
+use crate::network::{SERVER_ADDR};
 use crate::screens::ScreenState;
 use bevy_http_client::HttpClient;
 use bevy_http_client::prelude::{HttpTypedRequestTrait, TypedRequest, TypedResponse};
@@ -50,12 +50,15 @@ pub struct ClientConnectionInfo {
 }
 
 fn send_request(mut event_request: EventWriter<TypedRequest<ClientConnectionInfo>>) {
-    info!("send request");
-    event_request.write(
-        HttpClient::new()
-            .get(format!("{}:{}/info", SERVER_ADDR, SERVER_PORT))
-            .with_type::<ClientConnectionInfo>(),
-    );
+    if let Ok(request) = HttpClient::new()
+        .get(format!("{}/info", SERVER_ADDR))
+        .try_with_type::<ClientConnectionInfo>()
+    {
+        info!("send request");
+        event_request.write(request);
+    } else {
+        info!("error send request");
+    }
 }
 
 fn handle_response(
@@ -68,7 +71,7 @@ fn handle_response(
         let client_info = response.inner().clone();
         info!("{:?}", client_info);
         cmds.insert_resource(client_info.clone());
-        let (client, transport) = create_renet_client(user.deref(), client_info).unwrap();
+        let (client, transport) = create_renet_client(user.deref()).unwrap();
         cmds.insert_resource(client);
         cmds.insert_resource(transport);
     }
@@ -84,8 +87,7 @@ fn try_reconnect(
 ) {
     cmds.remove_resource::<RenetClient>();
     cmds.remove_resource::<NetcodeClientTransport>();
-    let (client, transport) =
-        create_renet_client(user.deref(), client_info.deref().clone()).unwrap();
+    let (client, transport) = create_renet_client(user.deref()).unwrap();
 
     cmds.insert_resource(client);
     cmds.insert_resource(transport);

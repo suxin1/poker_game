@@ -23,7 +23,7 @@ RUN cargo build --bin server --release
 # We do not need the Rust toolchain to run the binary!
 FROM alpine AS runtime
 
-ENV RUST_LOG=error \
+ENV RUST_LOG=info \
     MAX_CLIENT="60" \
     HTTP_SERVER_ADDR="[::]:8081" \
     NATIVE_SOCKET_ADDR="[::]:8082" \

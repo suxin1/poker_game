@@ -28,8 +28,6 @@ use crate::http_server::run_http_server;
 // used to make sure players use the most recent version of the client.
 pub const PROTOCOL_ID: u64 = 7;
 
-const SERVER_ADDR: &str = "127.0.0.1:5000";
-
 /// Utility function for extracting a players name from renet user data
 fn name_from_user_data(user_data: &[u8; NETCODE_USER_DATA_BYTES]) -> String {
     let mut buffer = [0u8; 8];
