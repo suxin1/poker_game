@@ -90,7 +90,7 @@ pub fn hands_view() -> impl Bundle {
             width: Val::Vw(80.),
             position_type: PositionType::Absolute,
             bottom: Val::Px(16.),
-            left: Val::Vw(15.),
+            left: Val::Vw(18.),
             ..default()
         },
         HandsRow,
@@ -119,7 +119,7 @@ fn render_hands_immediately(
         cmds.entity(entity).with_children(|parent| {
             parent.spawn(card_view(
                 card.clone(),
-                card_assets.get_card_img(card),
+                card_assets.image_node(card),
                 on_card_click,
             ));
         });
@@ -175,7 +175,7 @@ fn card_dealer_system(
                 cmds.entity(entity).with_children(|parent| {
                     parent.spawn(card_view(
                         card.clone(),
-                        card_assets.get_card_img(&card),
+                        card_assets.image_node(&card),
                         on_card_click,
                     ));
                 });

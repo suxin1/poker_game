@@ -1,5 +1,7 @@
 use crate::animation::ui_sprite_animation::{AnimationIndices, AnimationTimer};
-use crate::game::assets::{CardAssets, Icon64Assets, IndicatorAsset, SmallCardAssets};
+use crate::game::assets::{
+    CardAssets, CardBackAssets, Icon64Assets, IndicatorAsset, SmallCardAssets,
+};
 use crate::game::hidden_card::level::{LevelUiRoot, spawn_level};
 pub use crate::game::widget::prelude::*;
 use crate::prelude::*;
@@ -22,6 +24,7 @@ pub(super) fn plugin(app: &mut App) {
             .run_if(in_state(ScreenState::Gameplay)),
     );
     app.add_observer(update_player_seat);
+    app.add_observer(update_player_hands_counter);
 
     app.add_systems(
         OnEnter(ScreenState::Gameplay),
@@ -38,6 +41,9 @@ struct CollectedCardsCounter;
 struct CalledCardDisplay;
 
 #[derive(Component)]
+struct HandsCounter;
+
+#[derive(Component)]
 struct TeamIndicator;
 
 #[derive(Component)]
@@ -52,6 +58,7 @@ fn setup_seat_view(
     assets: Res<IndicatorAsset>,
     card_assets: Res<CardAssets>,
     small_card_assets: Res<SmallCardAssets>,
+    card_back_assets: Res<CardBackAssets>,
     icon_64: Res<Icon64Assets>,
 ) {
     let ui_root = r!(ui_root.single());
@@ -128,9 +135,19 @@ fn setup_seat_view(
                             let right = if matches!(position, SeatPosition::Right) {
                                 Auto
                             } else {
-                                Vw(-2.8)
+                                Vw(-7.8)
                             };
                             let left = if matches!(position, SeatPosition::Right) {
+                                Vw(-7.8)
+                            } else {
+                                Auto
+                            };
+                            let hands_right = if matches!(position, SeatPosition::Right) {
+                                Auto
+                            } else {
+                                Vw(-2.8)
+                            };
+                            let hands_left = if matches!(position, SeatPosition::Right) {
                                 Vw(-2.8)
                             } else {
                                 Auto
@@ -145,11 +162,11 @@ fn setup_seat_view(
                             // 记分显示
                             parent.spawn((
                                 Node {
-                                    top: Vw(0.6),
+                                    top: Vw(2.),
                                     right,
                                     left,
-                                    width: Vw(2.8),
-                                    height: Vw(3.6),
+                                    width: Vw(3.8),
+                                    height: Vw(5.),
                                     ..Node::ROW_CENTER.full_size().abs()
                                 },
                                 Visibility::Hidden,
@@ -158,7 +175,30 @@ fn setup_seat_view(
                                     (
                                         Node::DEFAULT.full_size().abs(),
                                         ImageNode {
-                                            image: card_assets.back.clone(),
+                                            image: card_back_assets.back.clone(),
+                                            ..default()
+                                        }
+                                    ),
+                                    body_text("0")
+                                ],
+                            ));
+                            // 手牌数量显示
+                            parent.spawn((
+                                Node {
+                                    top: Vw(0.6),
+                                    right: hands_right,
+                                    left: hands_left,
+                                    width: Vw(2.8),
+                                    height: Vw(3.6),
+                                    ..Node::ROW_CENTER.full_size().abs()
+                                },
+                                Visibility::Hidden,
+                                HandsCounter,
+                                children![
+                                    (
+                                        Node::DEFAULT.full_size().abs(),
+                                        ImageNode {
+                                            image: card_back_assets.back.clone(),
                                             ..default()
                                         }
                                     ),
@@ -169,8 +209,8 @@ fn setup_seat_view(
                             parent.spawn((
                                 Node {
                                     bottom: Vw(0.6),
-                                    right,
-                                    left,
+                                    right: hands_right,
+                                    left: hands_left,
                                     width: Vw(2.8),
                                     height: Vw(3.6),
                                     ..Node::ROW_CENTER.full_size().abs()
@@ -295,6 +335,48 @@ fn handle_seat_update_event(
                 }
             },
             _ => {},
+        }
+    }
+}
+
+fn update_player_hands_counter(
+    _: Trigger<RunSeatUpdate>,
+    mut seats_query: Query<(Entity, &Children, &SeatPosition), With<SeatPosition>>,
+    mut hands_counter_query: Query<&HandsCounter>,
+
+    mut visibility_query: Query<&mut Visibility>,
+    mut children_query: Query<&Children>,
+    mut text_query: Query<&mut Text>,
+
+    state: Res<GameState>,
+    seat_position_map: Res<SeatPositionMap>,
+    local_player: Res<Player>,
+) {
+    let seats_data = state.get_seats();
+    for (_, children, seat_position) in seats_query {
+        let index = c!(seat_position_map.0.get(seat_position));
+        let seat = &seats_data[index.clone()];
+
+        for child in children.iter() {
+            if let Ok(_) = hands_counter_query.get(child) {
+                let len = seat.hands.len();
+                if let Ok(mut visibility) = visibility_query.get_mut(child) {
+                    *visibility = Visibility::from_bool(
+                        len > 0 && !matches!(seat_position, SeatPosition::Bottom),
+                    );
+                }
+                if let Ok(children) = children_query.get(child) {
+                    for child in children.iter() {
+                        if let Ok(mut text) = text_query.get_mut(child) {
+                            **text = if len <= 3 {
+                                len.to_string()
+                            } else {
+                                "?".to_string()
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -470,6 +552,8 @@ impl SeatPosition {
 }
 
 const SEAT_SCREEN_DISTANCE: Val = Px(8.);
+const HORIZONTAL_TOP: Val = Vw(10.);
+
 impl SeatPosition {
     pub fn get_layout(&self) -> AbsolutePosition {
         match self {
@@ -482,7 +566,7 @@ impl SeatPosition {
             SeatPosition::Right => AbsolutePosition {
                 bottom: Val::Auto,
                 left: Val::Auto,
-                top: Val::Auto,
+                top: HORIZONTAL_TOP,
                 right: SEAT_SCREEN_DISTANCE,
             },
             SeatPosition::Top => AbsolutePosition {
@@ -494,7 +578,7 @@ impl SeatPosition {
             SeatPosition::Left => AbsolutePosition {
                 bottom: Val::Auto,
                 left: SEAT_SCREEN_DISTANCE,
-                top: Val::Auto,
+                top: HORIZONTAL_TOP,
                 right: Val::Auto,
             },
         }

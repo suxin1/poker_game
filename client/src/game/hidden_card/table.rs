@@ -1,6 +1,6 @@
 //! 桌面展示与控制
 
-use crate::game::assets::CardAssets;
+use crate::game::assets::{CardAssets, CardBackAssets};
 use crate::game::hidden_card::seat::CARD_WIDTH;
 use crate::game::widget::prelude::{CARD_HEIGHT, card_view};
 use crate::prelude::*;
@@ -81,11 +81,7 @@ fn render_table_hands(
                     height: CARD_HEIGHT,
                     ..default()
                 },
-                ImageNode {
-                    // 直接添加ImageNode组件
-                    image: card_assets.get_card_img(card),
-                    ..default()
-                },
+                card_assets.image_node(card)
             ));
         }
     });
@@ -102,6 +98,7 @@ fn update_table_counter(
     mut text_query: Query<&mut Text>,
     mut image_updated: Local<bool>,
     card_assets: Res<CardAssets>,
+    card_back_assets: Res<CardBackAssets>,
 ) {
     let (mut visible, children) = r!(counter_query.single_mut());
     let visible_bool = state.table_score_counter > 0;
@@ -115,7 +112,7 @@ fn update_table_counter(
     for child in children.iter() {
         if !*image_updated {
             if let Ok(mut image) = image_node_query.get_mut(child) {
-                image.image = card_assets.back.clone();
+                image.image = card_back_assets.back.clone();
                 *image_updated = true;
             }
         }

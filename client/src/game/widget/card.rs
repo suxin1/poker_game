@@ -5,14 +5,14 @@ use crate::animation::offset::NodeOffset;
 use crate::game::assets::CardAssets;
 use crate::theme::interaction::InteractionSelected;
 
-pub const CARD_WIDTH:Val = Vw(5.5);
-pub const CARD_HEIGHT:Val = Vw(8.);
+pub const CARD_WIDTH:Val = Vw(6.);
+pub const CARD_HEIGHT:Val = Vw(8.7);
 
 /// 一张牌的图片尺寸固定为 352 x 512（ 11: 16 ）
 /// 可选：
 ///     固定大小 Px(55) x Px(80)
 ///     自适应 Per(5.5) x Per(8)
-pub fn card_view<E, B, M, I>(card: Card, card_img: Handle<Image>, action: I) -> impl Bundle
+pub fn card_view<E, B, M, I>(card: Card, card_img: ImageNode, action: I) -> impl Bundle
 where
     E: Event,
     B: Bundle,
@@ -25,7 +25,7 @@ where
             ..default()
         },
         children![
-            ImageNode::new(card_img),
+            card_img,
         ],
         NodeOffset::default(),
         BoxShadow::default(),

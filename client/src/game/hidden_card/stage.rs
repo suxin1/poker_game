@@ -210,7 +210,7 @@ fn show_call_card_popup(
                         for card in cards.iter() {
                             parent.spawn(card_view(
                                 card.clone(),
-                                card_assets.get_card_img(card),
+                                card_assets.image_node(card),
                                 on_call_card_click,
                             ));
                         }

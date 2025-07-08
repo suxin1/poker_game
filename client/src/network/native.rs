@@ -20,14 +20,14 @@ use shared::Player;
 pub(super) fn create_renet_client(
     user: &Player,
 ) -> anyhow::Result<(RenetClient, NetcodeClientTransport)> {
-    // let server_addr: SocketAddr =
-    //     NATIVE_SOCKET_ADDR
-    //         .to_socket_addrs()?
-    //         .next()
-    //         .ok_or(io::Error::new(io::ErrorKind::Other, "Could not resolve address"))?;
-    let server_addr: SocketAddr = NATIVE_SOCKET_ADDR.parse()?;
+    let server_addr: SocketAddr =
+        NATIVE_SOCKET_ADDR
+            .to_socket_addrs()?
+            .next()
+            .ok_or(io::Error::new(io::ErrorKind::Other, "Could not resolve address"))?;
+    // let server_addr: SocketAddr = NATIVE_SOCKET_ADDR.parse()?;
     info!("{:?}", server_addr);
-    let client_socket = NativeSocket::new(UdpSocket::bind("127.0.0.1:0")?).unwrap();
+    let client_socket = NativeSocket::new(UdpSocket::bind("[::1]:0")?).unwrap();
 
     let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
