@@ -15,12 +15,7 @@ use bincode::config::Configuration;
 use log::{info, trace};
 
 use renet2::{ConnectionConfig, RenetServer, ServerEvent};
-use renet2_netcode::{
-    BoxedSocket, NETCODE_USER_DATA_BYTES, NativeSocket, NetcodeServerTransport,
-    ServerAuthentication, ServerCertHash, ServerConfig, ServerSetupConfig, WebServerDestination,
-    WebSocketServer, WebSocketServerConfig, WebTransportServer, WebTransportServerConfig,
-    ServerSocket
-};
+use renet2_netcode::{BoxedSocket, NETCODE_USER_DATA_BYTES, NativeSocket, NetcodeServerTransport, ServerAuthentication, ServerCertHash, ServerConfig, ServerSetupConfig, WebServerDestination, WebSocketServer, WebSocketServerConfig, WebTransportServer, WebTransportServerConfig, ServerSocket, WebSocketAcceptor};
 use serde::{Deserialize, Serialize};
 use crate::game_server::RenetGameServer;
 use crate::http_server::run_http_server;
@@ -75,7 +70,14 @@ fn main() {
 
     // WebSocket socket
     let ws_socket = {
+        #[cfg(feature = "dev")]
         let config = WebSocketServerConfig::new(ws_socket_addr, max_clients);
+        #[cfg(not(feature = "dev"))]
+        let config = WebSocketServerConfig {
+            listen: ws_socket_addr,
+            max_clients: max_clients,
+            acceptor: WebSocketAcceptor::Plain {has_tls_proxy: true}
+        };
         WebSocketServer::new(config, runtime.handle().clone()).unwrap()
     };
 
