@@ -25,7 +25,6 @@ pub(super) fn create_renet_client(
             .to_socket_addrs()?
             .next()
             .ok_or(io::Error::new(io::ErrorKind::Other, "Could not resolve address"))?;
-    // let server_addr: SocketAddr = NATIVE_SOCKET_ADDR.parse()?;
     info!("{:?}", server_addr);
     let client_socket = NativeSocket::new(UdpSocket::bind("[::1]:0")?).unwrap();
 
