@@ -16,16 +16,22 @@ pub const PROTOCOL_ID: u64 = 7;
 #[cfg(feature = "dev")]
 pub const SERVER_ADDR: &str = "http://127.0.0.1:8081";
 #[cfg(not(feature = "dev"))]
-pub const SERVER_ADDR: &str = "https://poker_server.wasdqe.top:1080";
+pub const SERVER_ADDR: &str = "https://poker_server.wasdqe.top:1443";
 
 
+// 开发环境 WebSocket 地址
 #[cfg(all(target_arch = "wasm32", feature = "dev"))]
 pub const WS_URL: &str = "ws://[::1]:8085";
+// 生产环境 WebSocket 地址
 #[cfg(all(target_arch = "wasm32", not(feature = "dev")))]
-pub const WS_URL: &str = "ws://poker_server.wasdqe.top:1447";
+pub const WS_URL: &str = "wss://poker_server.wasdqe.top:1447";
 
+
+// 开发环境 Native 地址
 #[cfg(all(not(target_arch = "wasm32"), feature = "dev"))]
 pub const NATIVE_SOCKET_ADDR: &str = "[::1]:8082";
+
+// 生产环境 Native 地址 TODO 服务器连接不成功
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "dev")))]
 pub const NATIVE_SOCKET_ADDR: &str = "poker_server.wasdqe.top:1445";
 

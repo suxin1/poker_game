@@ -2077,6 +2077,7 @@ dependencies = [
  "tracing",
  "url",
  "variadics_please",
+ "wasm-bindgen",
  "web-time",
 ]
 

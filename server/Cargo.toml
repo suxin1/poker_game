@@ -21,6 +21,7 @@ url = "2.5.4"
 tiny_bail = "0.4"
 
 [features]
+default = ["dev"]
 dev = []
 
 [lints]

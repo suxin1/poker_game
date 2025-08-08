@@ -3,7 +3,7 @@ runner = "wasm-server-runner"
 rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
 
 [build]
-#target = "wasm32-unknown-unknown"
+target = "wasm32-unknown-unknown"
 
 [env]
 WASM_SERVER_RUNNER_ADDRESS = "0.0.0.0"

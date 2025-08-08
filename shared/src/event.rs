@@ -17,6 +17,7 @@ pub enum EndGameReason {
 pub enum GameEvent {
     // 开发用
     RoomReset { room_id: RoomId },
+    ServerReset,
 
     RoomError(RoomServiceError),
 

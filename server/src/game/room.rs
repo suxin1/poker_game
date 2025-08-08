@@ -277,7 +277,7 @@ impl Rooms {
         result
     }
 
-    /// 方便开发重置房间状态
+    /// 方便开发 重置服务器
     fn reset_room(&mut self, room_id: RoomId) -> Result<(), RoomServiceError> {
         let room = self
             .rooms
@@ -287,8 +287,14 @@ impl Rooms {
         let mut room = room.write().unwrap();
 
         room.game_state = GameState::default();
+        self.client_room_map.clear();
         info!("Reset room: {}", room_id);
         Ok(())
+    }
+
+    /// 重置服务器
+    fn reset_server(&mut self) {
+        *self = Self::with_test_room();
     }
 
     /// 尝试处理事件，如果事件是创建房间或者加入房间，则处理，否则尝试获取房间并将事件交给房间处理
@@ -302,6 +308,10 @@ impl Rooms {
             GameEvent::SyncState(_) | GameEvent::GameEnd(_) => {
                 // 阻止非法事件
                 Err(RoomServiceError::ActionNotAllowed)
+            }
+            GameEvent::ServerReset => {
+                self.reset_server();
+                Ok(())
             }
             GameEvent::ClientJustLaunched(client_id) => {
                 let room_id = self.client_room_map.get(&client_id);

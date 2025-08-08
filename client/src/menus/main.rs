@@ -70,12 +70,15 @@ fn open_settings_menu(
     mut client: ResMut<RenetClient>,
     bincode_config: Res<BincodeConfig>,
 ) {
-    #[cfg(feature = "dev")]
-    {
-        info!("发送重置游戏房间事件到服务器");
-        let event = GameEvent::RoomReset { room_id: 0 };
-        client.send_message(0, encode_to_vec(&event, bincode_config.0).unwrap());
-    }
+    // #[cfg(feature = "dev")]
+    // {
+    //     info!("发送重置游戏房间事件到服务器");
+    //     let event = GameEvent::RoomReset { room_id: 0 };
+    //     client.send_message(0, encode_to_vec(&event, bincode_config.0).unwrap());
+    // }
+    info!("发送重置游戏房间事件到服务器");
+    let event = GameEvent::RoomReset { room_id: 0 };
+    client.send_message(0, encode_to_vec(&event, bincode_config.0).unwrap());
     next_menu.set(Menu::Settings);
 }
 

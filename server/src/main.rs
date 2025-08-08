@@ -72,6 +72,7 @@ fn main() {
     let ws_socket = {
         #[cfg(feature = "dev")]
         let config = WebSocketServerConfig::new(ws_socket_addr, max_clients);
+
         #[cfg(not(feature = "dev"))]
         let config = WebSocketServerConfig {
             listen: ws_socket_addr,

@@ -6,19 +6,22 @@
 mod animation;
 mod asset_tracking;
 // mod audio;
+mod core;
 mod demo;
+mod game;
 mod menus;
+mod network;
+mod prelude;
 mod screens;
 mod theme;
-mod core;
-mod prelude;
 mod utils;
-mod network;
-mod game;
 
-// #[cfg(feature = "dev")]
+#[cfg(feature = "dev")]
 mod fake_player;
+
 mod plugin;
+
+mod user;
 
 use crate::prelude::*;
 fn main() -> AppExit {
@@ -34,9 +37,10 @@ impl Plugin for AppPlugin {
 
         // Add other plugins.
         app.add_plugins((
-            // #[cfg(feature = "dev")]
+            #[cfg(feature = "dev")]
             fake_player::plugin,
-
+            #[cfg(not(feature = "dev"))]
+            user::plugin,
             asset_tracking::plugin,
             demo::plugin,
             network::plugin,
@@ -51,7 +55,6 @@ impl Plugin for AppPlugin {
         app.add_systems(Startup, spawn_camera);
     }
 }
-
 
 #[derive(Component)]
 #[require(Camera2d)]

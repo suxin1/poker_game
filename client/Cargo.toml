@@ -81,6 +81,8 @@ fake = {version = "4.3", optional = true}
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.3", features = ["wasm_js"] }
 web-time = "1.1.0"
+wasm-bindgen = "0.2"
+
 # In addition to enabling the `wasm_js` feature, you need to include `--cfg 'getrandom_backend="wasm_js"'`
 # in your rustflags for both local and CI/CD web builds, taking into account that rustflags specified in
 # multiple places are NOT combined (see <https://github.com/rust-lang/cargo/issues/5376>).
@@ -91,7 +93,7 @@ web-time = "1.1.0"
 
 [features]
 # Default to a native dev build.
-default = ["dev_native"]
+default = ["web", "dev"]
 web = [
 #    "bevy/bevy_dev_tools",
 #    "bevy/bevy_ui_debug",
