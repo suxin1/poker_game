@@ -24,7 +24,7 @@ bacon run
 ```
 cargo binstall --locked --no-confirm --force wasm-bindgen-cli
 cargo binstall --locked --no-confirm --force wasm-opt
-bevy build --locked --release --features='web' --yes web --bundle
+bevy build --bin client --locked --release --features='web' --yes web --bundle
 ```
 ### Bacon 
 [Bacon](https://dystroy.org/bacon/config/#job-properties) 是一个 Rust 开发工具，详细用法查看[文档](https://dystroy.org/bacon/config/#job-properties)。

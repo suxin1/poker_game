@@ -7,7 +7,15 @@ use shared::Player;
 pub(super) fn plugin(app: &mut App) {
 
     #[cfg(target_arch = "wasm32")]
-    let player = crate::utils::js_call::get_user_info();
-
-    app.insert_resource(player);
+    {
+        let player = crate::utils::js_call::get_user_info();
+        match player {
+            Ok(player) => {
+                app.insert_resource(player);
+            },
+            Err(err) => {
+                error!("{:?}", err);
+            }
+        }
+    }
 }

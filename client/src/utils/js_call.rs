@@ -1,3 +1,4 @@
+use log::info;
 use shared::Player;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -8,10 +9,10 @@ extern "C" {
     fn get_userinfo() -> JsValue;
 }
 
-#[wasm_bindgen]
-pub fn get_user_info() -> Player {
+pub fn get_user_info() -> Result<Player, JsValue>  {
     let js_value = get_userinfo();
-
-    let data: Player = js_value.into_serde().unwrap();
-    data
+    info!("get_user_info: {:?}", js_value);
+    let data: Player = serde_wasm_bindgen::from_value(js_value)?;
+    info!("get_user_info: {:?}", data);
+    Ok(data)
 }

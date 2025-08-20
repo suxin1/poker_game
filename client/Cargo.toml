@@ -82,6 +82,7 @@ fake = {version = "4.3", optional = true}
 getrandom = { version = "0.3", features = ["wasm_js"] }
 web-time = "1.1.0"
 wasm-bindgen = "0.2"
+serde-wasm-bindgen = "0.6"
 
 # In addition to enabling the `wasm_js` feature, you need to include `--cfg 'getrandom_backend="wasm_js"'`
 # in your rustflags for both local and CI/CD web builds, taking into account that rustflags specified in
@@ -93,7 +94,7 @@ wasm-bindgen = "0.2"
 
 [features]
 # Default to a native dev build.
-default = ["web", "dev"]
+default = ["web"]
 web = [
 #    "bevy/bevy_dev_tools",
 #    "bevy/bevy_ui_debug",

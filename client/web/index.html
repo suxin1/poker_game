@@ -75,9 +75,9 @@
   window.get_userinfo = () => {
     const params = new URLSearchParams(window.location.search);
     return {
-      id: params.get("user_id"),
-      username: params.get("username"),
-      avatar_url: params.get("avatar_url"),
+      id: parseInt(params.get("id")),
+      name: params.get("name"),
+      avatar: params.get("avatar"),
     };
   };
 </script>
