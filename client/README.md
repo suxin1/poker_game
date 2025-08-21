@@ -102,12 +102,6 @@ To trigger a full release, navigate to `Actions > Release > Run workflow` in you
 > [!NOTE]
 > A web release runs automatically on every commit to `main`.
 
-# License
-
-The source code in this repository is licensed under either of the following at your option:
-
-- [CC0-1.0 License](./LICENSE-CC0-1.0.txt)
-- [0BSD License](./LICENSE-0BSD.txt)
 
 # Credits
 
